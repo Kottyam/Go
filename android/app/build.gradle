@@ -4,6 +4,14 @@ plugins {
 
 def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
 
+configurations.configureEach {
+    resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == "org.jetbrains.kotlin" && details.requested.name.startsWith("kotlin-stdlib")) {
+            details.useVersion "1.9.25"
+        }
+    }
+}
+
 android {
     namespace "com.alien1729.goservice"
     compileSdk 35
