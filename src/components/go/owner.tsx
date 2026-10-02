@@ -1262,12 +1262,15 @@ function ServiceForm({
           </button>
         ))}
       </div>
+      <Field label={t.nameShop}>
+        <TextInput value={shop} onChange={(e) => setShop(e.target.value)} required />
+      </Field>
       <Field label={t.nameService}>
         <TextInput value={service} onChange={(e) => { setService(e.target.value); setKind("custom"); }} placeholder={t.serviceEg} required />
       </Field>
-      <div>
-        <p className="mb-2 text-sm text-muted">{t.pickOne}</p>
-        <div className="flex flex-wrap gap-2">
+      <details>
+        <summary className="cursor-pointer text-sm text-muted">{t.pickOne}</summary>
+        <div className="mt-2 flex flex-wrap gap-2">
           {SERVICES.filter((s) => s.id !== "custom").map((s) => (
             <button
               key={s.id}
@@ -1284,10 +1287,7 @@ function ServiceForm({
             </button>
           ))}
         </div>
-      </div>
-      <Field label={t.nameShop}>
-        <TextInput value={shop} onChange={(e) => setShop(e.target.value)} required />
-      </Field>
+      </details>
       <Btn type="submit" tone="stamp" disabled={!ready}>
         {submitLabel}
       </Btn>
@@ -1299,7 +1299,9 @@ function SettingsView() {
   const go = useGo();
   const { t } = useI18n();
   const [paste, setPaste] = useState("");
+  const [sure, setSure] = useState(false);
   const who = go.session?.uid === "demo-owner" ? t.demoOwnerName : go.session?.name;
+  const shop = go.active;
   return (
     <div className="grid gap-4">
       <h2 className="font-semibold">{t.settings}</h2>
@@ -1347,6 +1349,22 @@ function SettingsView() {
       <Btn tone="ghost" onClick={() => void go.signOut()}>
         {t.out}
       </Btn>
+      {shop && (
+        <section className="sheet grid gap-3 p-4">
+          <h3 className="font-medium text-due">{t.deleteForever}</h3>
+          <p className="text-sm leading-6 text-muted">{t.deleteWarn}</p>
+          <p className="text-sm font-medium">{shop.shop.name}</p>
+          {sure ? (
+            <Btn tone="stamp" disabled={go.busy} onClick={() => void go.deleteShop(shop.shop.id)}>
+              {t.deleteYes}
+            </Btn>
+          ) : (
+            <Btn tone="ghost" onClick={() => setSure(true)}>
+              {t.deleteForever}
+            </Btn>
+          )}
+        </section>
+      )}
     </div>
   );
 }

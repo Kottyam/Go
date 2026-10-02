@@ -1,7 +1,9 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, getRedirectResult, onAuthStateChanged, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signInAnonymously, signOut, updatePassword } from "firebase/auth";
 import {
+  arrayRemove,
   arrayUnion,
+  deleteDoc,
   doc,
   getDoc,
   getFirestore,
@@ -216,6 +218,13 @@ export async function createShop(
     { shopIds: arrayUnion(blob.shop.id), name, email },
     { merge: true },
   );
+}
+
+export async function deleteShop(config: FirebaseConfig, uid: string, shopId: string, code: string) {
+  const db = dbFor(config);
+  await deleteDoc(doc(db, "goShops", shopId));
+  if (code) await deleteDoc(doc(db, "goCodes", code));
+  await setDoc(doc(db, "goOwners", uid), { shopIds: arrayRemove(shopId) }, { merge: true });
 }
 
 export async function mutateShop(

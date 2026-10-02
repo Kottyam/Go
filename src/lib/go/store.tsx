@@ -69,6 +69,7 @@ type GoApi = {
   toggleSkip: (shopId: string, customerId: string, date: string) => Promise<void>;
   addExtra: (shopId: string, extra: Extra) => Promise<void>;
   dropExtra: (shopId: string, extraId: string) => Promise<void>;
+  deleteShop: (shopId: string) => Promise<void>;
   google: () => Promise<FbUser>;
   googleAccount: FbUser | null;
 };
@@ -570,6 +571,27 @@ export function GoProvider({ children }: { children: ReactNode }) {
         return commit(shopId, (b) => recipeExtra(b, { ...extra, name: extra.name.trim() }));
       },
       dropExtra: (shopId, extraId) => commit(shopId, (b) => recipeDropExtra(b, extraId)),
+      deleteShop: async (shopId) => {
+        const live = sessionRef.current;
+        if (!live || live.kind !== "owner") return;
+        const shop = blobsRef.current.find((b) => b.shop.id === shopId);
+        if (!shop) return;
+        const rest = blobsRef.current.filter((b) => b.shop.id !== shopId);
+        setBlobs(rest);
+        setActiveShopId(rest[0]?.shop.id ?? null);
+        if (live.backend !== "firebase" || !configRef.current) return;
+        pending.current += 1;
+        setBusy(true);
+        try {
+          await (await loadFirebase()).deleteShop(configRef.current, live.uid, shopId, shop.shop.code);
+        } catch (e) {
+          setBlobs((curr) => (curr.some((b) => b.shop.id === shopId) ? curr : [shop, ...curr]));
+          setNotice(explainFirebase(e));
+        } finally {
+          pending.current = Math.max(0, pending.current - 1);
+          setBusy(false);
+        }
+      },
       changePassword: async (password) => {
         const live = sessionRef.current;
         if (!live || live.kind !== "customer") return;
