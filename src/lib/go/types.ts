@@ -14,10 +14,6 @@ export type ShopKind =
   | "milk"
   | "water"
   | "vegetable"
-  | "farm"
-  | "house"
-  | "help"
-  | "tuition"
   | "laundry"
   | "custom";
 
