@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { FIREBASE_PROJECT, FIRESTORE_RULES, parseFirebaseConfig, type FbUser } from "@/lib/go/config";
-import { kindLabel } from "@/lib/go/logic";
+import { useI18n } from "@/lib/go/i18n";
 import { useGo } from "@/lib/go/store";
+import type { ShopKind } from "@/lib/go/types";
 import { Btn, Field, TextInput } from "./ui";
 
 export function Gate() {
   const go = useGo();
+  const { t } = useI18n();
   const [paste, setPaste] = useState("");
   const [code, setCode] = useState("");
   const [user, setUser] = useState<FbUser | null>(null);
@@ -42,11 +44,8 @@ export function Gate() {
       setUser(signed);
       setPhase("join");
     } catch (e) {
-      /* notice set inside google() only for signInOwner; google() throws */
-      const message = e instanceof Error ? e.message : "Google കയറാൻ കഴിഞ്ഞില്ല";
-      if (!go.notice) {
-        console.error(message);
-      }
+      const message = e instanceof Error ? e.message : t.googleFail;
+      if (!go.notice) console.error(message);
     }
   }
 
@@ -63,7 +62,7 @@ export function Gate() {
       setShopId(blob.shop.id);
       setCustomers(blob.customers);
     } catch {
-      /* notice already set when lookup throws before catch in store — lookup throws raw */
+      /* notice already set */
     }
   }
 
@@ -86,21 +85,19 @@ export function Gate() {
         <div className="pointer-events-none absolute -right-8 -top-8 grid h-32 w-32 rotate-12 place-items-center rounded-full border-4 border-stamp font-display text-4xl text-stamp">
           GO
         </div>
-        <p className="text-sm font-medium text-stamp">സർവീസ് · ക്രെഡിറ്റ് ബിൽ · ഓർഡർ</p>
-        <h1 className="mt-2 font-display text-5xl leading-none">GO Service</h1>
-        <p className="mt-3 max-w-sm text-sm leading-6 text-muted">
-          Google കയറിയ ശേഷം സർവീസ് തിരഞ്ഞെടുക്കുക. ബേക്കറി, സ്റ്റേഷനറി, അല്ലെങ്കിൽ സ്വന്തം സർവീസ് ടൈപ്പ് ചെയ്യാം.
-        </p>
+        <p className="text-sm font-medium text-stamp">{t.tag}</p>
+        <h1 className="mt-2 font-display text-5xl leading-none text-stamp">{t.brand}</h1>
+        <p className="mt-3 max-w-sm text-sm leading-6 text-muted">{t.lead}</p>
         <div className="mt-6 grid gap-2">
           <Btn tone="stamp" onClick={go.enterDemoOwner}>
-            ഡെമോ · ഷോപ്പ് ഉടമ
+            {t.demoOwner}
           </Btn>
-          <p className="text-xs text-muted">മാവേലി ബേക്കറിയും കൊട്ടയം ഹോൾസെയിലും ഇപ്പോൾ തുറക്കാം. Firebase വേണ്ട.</p>
+          <p className="text-xs text-muted">{t.demoHint}</p>
         </div>
       </section>
 
       <section className="mt-4 sheet p-4">
-        <h2 className="font-semibold">ഡെമോ · കസ്റ്റമർ</h2>
+        <h2 className="font-semibold">{t.demoCustomer}</h2>
         <ul className="mt-2 divide-y divide-line">
           {demoPeople.map((c) => (
             <li key={c.id}>
@@ -112,10 +109,10 @@ export function Gate() {
                 <span>
                   <span className="block font-medium">{c.name}</span>
                   <span className="text-sm text-muted">
-                    {c.shop} · {kindLabel(c.kind)}
+                    {c.shop} · {t.svc[c.kind as ShopKind] ?? c.kind}
                   </span>
                 </span>
-                <span className="text-sm text-stamp">കയറുക</span>
+                <span className="text-sm text-stamp">{t.enter}</span>
               </button>
             </li>
           ))}
@@ -123,19 +120,21 @@ export function Gate() {
       </section>
 
       <section className="mt-4 sheet p-4">
-        <h2 className="font-semibold">അവസാനം · Firebase ബാക്കെൻഡ്</h2>
+        <h2 className="font-semibold">{t.firebaseTitle}</h2>
         <p className="mt-1 text-sm leading-6 text-muted">
-          ഡാറ്റ ഈ Firebase പ്രോജക്റ്റിൽ: {FIREBASE_PROJECT}. വെബ് കോൺഫിഗ് ഇതിനകം ഉണ്ട്. അടുത്തത് Google സൈൻ-ഇൻ മാത്രം.
+          {t.firebaseLead} {FIREBASE_PROJECT}
         </p>
         <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm leading-6 text-muted">
-          <li>Authentication → Google ഓൺ ആണെന്ന് ഉറപ്പാക്കുക.</li>
-          <li>Firestore ഉണ്ടെങ്കിൽ Rules Publish ചെയ്തിട്ടുണ്ടോ എന്ന് നോക്കുക.</li>
-          <li>താഴെ ഉടമ · Google അമർത്തുക.</li>
+          <li>{t.fb1}</li>
+          <li>{t.fb2}</li>
+          <li>{t.fb3}</li>
         </ol>
         {go.config && (
-          <p className="mt-3 text-sm text-paid">കണക്ട് ചെയ്ത പ്രോജക്റ്റ്: {go.config.projectId}</p>
+          <p className="mt-3 text-sm text-paid">
+            {t.connected} {go.config.projectId}
+          </p>
         )}
-        <Field label="firebaseConfig ഒട്ടിക്കുക">
+        <Field label={t.pasteConfig}>
           <textarea
             className="field mt-1"
             value={paste}
@@ -151,13 +150,13 @@ export function Gate() {
               if (cfg) go.saveConfig(cfg);
             }}
           >
-            കോൺഫിഗ് സേവ്
+            {t.saveConfig}
           </Btn>
           <Btn tone="ink" disabled={go.busy} onClick={() => void googleOwner()}>
-            ഉടമ · Google
+            {t.ownerGoogle}
           </Btn>
           <Btn tone="ghost" disabled={go.busy} onClick={() => void googleJoin()}>
-            കസ്റ്റമർ · Google
+            {t.customerGoogle}
           </Btn>
         </div>
         <button
@@ -165,24 +164,24 @@ export function Gate() {
           className="mt-3 text-sm text-muted underline"
           onClick={() => void navigator.clipboard.writeText(FIRESTORE_RULES)}
         >
-          Firestore rules കോപ്പി
+          {t.copyRules}
         </button>
         {phase === "join" && user && (
           <div className="mt-4 grid gap-3 border-t border-line pt-4">
             <p className="text-sm">
-              {user.name}. ഷോപ്പ് കോഡ് ഉടമ പറയും, ഉദാഹരണം GO2048.
+              {user.name}. {t.shopCodeHelp}
             </p>
-            <Field label="ഷോപ്പ് കോഡ്">
+            <Field label={t.shopCode}>
               <TextInput value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="GO2048" />
             </Field>
             <Btn tone="stamp" onClick={() => void findShop()}>
-              ഷോപ്പ് തുറക്കുക
+              {t.openShop}
             </Btn>
             {customers.length > 0 && (
               <>
-                <Field label="നിങ്ങളുടെ പേര്">
+                <Field label={t.yourName}>
                   <select className="field" value={picked} onChange={(e) => setPicked(e.target.value)}>
-                    <option value="">തിരഞ്ഞെടുക്കുക</option>
+                    <option value="">{t.choose}</option>
                     {customers.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} · {c.route}
@@ -190,11 +189,11 @@ export function Gate() {
                     ))}
                   </select>
                 </Field>
-                <Field label="ഫോൺ നമ്പർ (ഷോപ്പിലുള്ളത്)">
+                <Field label={t.phoneOnFile}>
                   <TextInput value={phone} inputMode="tel" onChange={(e) => setPhone(e.target.value)} placeholder="9847011122" />
                 </Field>
                 <Btn tone="paid" disabled={!picked || go.busy} onClick={() => void claim()}>
-                  എന്റെ അക്കൗണ്ട് ബന്ധിപ്പിക്കുക
+                  {t.linkAccount}
                 </Btn>
               </>
             )}

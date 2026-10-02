@@ -1,21 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Noto Sans Malayalam", "Segoe UI", sans-serif;
+  --font-sans: "Noto Sans Malayalam", "Noto Sans Tamil", "Noto Sans Kannada", "Noto Sans Telugu", "Noto Sans Devanagari", "Segoe UI", sans-serif;
   --font-display: "Fraunces", Georgia, serif;
-  --color-paper: #f4efe6;
-  --color-card: #fffdf8;
-  --color-ink: #1c1814;
-  --color-muted: #6d6458;
-  --color-line: #e4d9c6;
+  --color-paper: #ffffff;
+  --color-card: #ffffff;
+  --color-ink: #123524;
+  --color-muted: #3e6b50;
+  --color-line: #d7eadc;
   --color-due: #9d341c;
-  --color-due-bg: #f8e8e1;
-  --color-paid: #1d6844;
-  --color-paid-bg: #e4f3ea;
-  --color-stamp: #c24e22;
-  --color-stamp-ink: #fff8f3;
-  --color-gold: #e4b84a;
-  --color-gold-ink: #2a1c08;
+  --color-due-bg: #fdecea;
+  --color-paid: #0f7a38;
+  --color-paid-bg: #e7f6ec;
+  --color-stamp: #0f8a3c;
+  --color-stamp-ink: #ffffff;
+  --color-gold: #0f8a3c;
+  --color-gold-ink: #ffffff;
   --radius: 0.9rem;
 }
 
@@ -53,7 +53,7 @@
   select:focus,
   textarea:focus,
   button:focus-visible {
-    outline: 2px solid var(--color-gold);
+    outline: 2px solid var(--color-stamp);
     outline-offset: 2px;
   }
   @media (prefers-reduced-motion: reduce) {

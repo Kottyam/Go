@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
+import { useI18n } from "@/lib/go/i18n";
 import { qtyText, todayISO } from "@/lib/go/logic";
 import { useGo } from "@/lib/go/store";
 import type { Order, PayMode } from "@/lib/go/types";
@@ -13,6 +14,7 @@ export function OrderPad({
   onDone?: () => void;
 }) {
   const go = useGo();
+  const { t } = useI18n();
   const shop = go.active;
   const [customerId, setCustomerId] = useState(lockCustomerId ?? shop?.customers[0]?.id ?? "");
   const [date, setDate] = useState(todayISO());
@@ -61,14 +63,14 @@ export function OrderPad({
   return (
     <div className="sheet p-4">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="text-lg font-semibold">പുതിയ ഓർഡർ</h2>
+        <h2 className="text-lg font-semibold">{t.newOrder}</h2>
         <Money n={total} tone={mode === "credit" ? "due" : "paid"} />
       </div>
       <div className="grid gap-3">
         {lockCustomerId ? (
           <p className="text-sm text-muted">{customer?.name}</p>
         ) : (
-          <Field label="കസ്റ്റമർ">
+          <Field label={t.customer}>
             <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
               {shop.customers.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -79,16 +81,16 @@ export function OrderPad({
           </Field>
         )}
         {!lockCustomerId && (
-          <Field label="തീയതി">
+          <Field label={t.date}>
             <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
         )}
         <div className="grid grid-cols-2 gap-2">
           <Btn type="button" tone={mode === "credit" ? "stamp" : "ghost"} onClick={() => setMode("credit")}>
-            ക്രെഡിറ്റ്
+            {t.credit}
           </Btn>
           <Btn type="button" tone={mode === "cash" ? "paid" : "ghost"} onClick={() => setMode("cash")}>
-            ക്യാഷ്
+            {t.cash}
           </Btn>
         </div>
         <ul className="divide-y divide-line">
@@ -100,7 +102,9 @@ export function OrderPad({
                   <p className="truncate font-medium">{it.name}</p>
                   <p className="text-sm text-muted">
                     <Money n={it.price} /> / {it.unit}
-                    <span className="ml-2">സ്റ്റോക്ക് {qtyText(it.stock)}</span>
+                    <span className="ml-2">
+                      {t.stockWord} {qtyText(it.stock)}
+                    </span>
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
@@ -108,7 +112,7 @@ export function OrderPad({
                     type="button"
                     className="grid h-11 w-11 place-items-center rounded-full border border-line"
                     onClick={() => setQ(it.id, q - 1)}
-                    aria-label="കുറയ്ക്കുക"
+                    aria-label={t.less}
                   >
                     <Minus size={16} />
                   </button>
@@ -124,7 +128,7 @@ export function OrderPad({
                     type="button"
                     className="grid h-11 w-11 place-items-center rounded-full border border-line"
                     onClick={() => setQ(it.id, q + 1)}
-                    aria-label="കൂട്ടുക"
+                    aria-label={t.moreQty}
                   >
                     <Plus size={16} />
                   </button>
@@ -133,12 +137,12 @@ export function OrderPad({
             );
           })}
         </ul>
-        {items.length === 0 && <p className="text-sm text-muted">ആദ്യം ഐറ്റംസ് ചേർക്കുക.</p>}
-        <Field label="കുറിപ്പ്">
-          <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="ഡെലിവറി സമയം, വഴി…" />
+        {items.length === 0 && <p className="text-sm text-muted">{t.addItems}</p>}
+        <Field label={t.note}>
+          <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder={t.notePh} />
         </Field>
         <Btn type="button" tone="gold" disabled={!customer || lines.length === 0 || go.busy} onClick={() => void submit()}>
-          ഓർഡർ സേവ്
+          {t.saveOrder}
         </Btn>
       </div>
     </div>

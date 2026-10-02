@@ -219,11 +219,9 @@ export function recipePayment(b: ShopBlob, payment: Payment): ShopBlob {
 
 export function recipeLink(b: ShopBlob, customerId: string, linkedUid: string, phone: string): ShopBlob {
   const customer = b.customers.find((c) => c.id === customerId);
-  if (!customer) throw new Error("കസ്റ്റമർ കണ്ടില്ല");
-  if (!phonesMatch(customer.phone, phone)) throw new Error("ഫോൺ നമ്പർ ഈ കസ്റ്റമറിന്റേതല്ല");
-  if (customer.linkedUid && customer.linkedUid !== linkedUid) {
-    throw new Error("ഈ പേര് മറ്റൊരു Google അക്കൗണ്ടുമായി ബന്ധിപ്പിച്ചിട്ടുണ്ട്");
-  }
+  if (!customer) throw new Error("@customerMissing");
+  if (!phonesMatch(customer.phone, phone)) throw new Error("@phoneMismatch");
+  if (customer.linkedUid && customer.linkedUid !== linkedUid) throw new Error("@nameLinked");
   return {
     ...b,
     rev: b.rev + 1,

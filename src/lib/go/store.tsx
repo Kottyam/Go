@@ -122,7 +122,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
         if (role === "owner") {
           setBlobs([]);
           setSession({ kind: "owner", backend: "firebase", name: user.name, uid: user.uid, email: user.email });
-          setNotice(`Google അക്കൗണ്ട്: ${user.email || user.name}`);
+          setNotice(`@google|${user.email || user.name}`);
         } else {
           sessionStorage.setItem("go-customer-return", "1");
         }
@@ -183,14 +183,14 @@ export function GoProvider({ children }: { children: ReactNode }) {
   async function commit(shopId: string, recipe: (blob: ShopBlob) => ShopBlob) {
     const current = blobsRef.current.find((b) => b.shop.id === shopId);
     if (!current) {
-      setNotice("ഷോപ്പ് കണ്ടില്ല");
+      setNotice("@shopMissing");
       return;
     }
     let optimistic: ShopBlob;
     try {
       optimistic = recipe(current);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "സേവ് ആയില്ല");
+      setNotice(e instanceof Error ? e.message : "@saveFailed");
       return;
     }
     setBlobs((curr) => curr.map((b) => (b.shop.id === shopId ? optimistic : b)));
@@ -235,7 +235,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
         const blob = demo.find((b) => b.customers.some((c) => c.id === customerId));
         const customer = blob?.customers.find((c) => c.id === customerId);
         if (!blob || !customer) {
-          setNotice("കസ്റ്റമർ കണ്ടില്ല");
+          setNotice("@customerMissing");
           return;
         }
         setBlobs(demo);
@@ -252,19 +252,19 @@ export function GoProvider({ children }: { children: ReactNode }) {
       },
       saveConfig: (next) => {
         if (next && next.projectId !== FIREBASE_PROJECT) {
-          setNotice(`ബാക്കെൻഡ് ${FIREBASE_PROJECT} ആയിരിക്കണം. ഒട്ടിച്ചത് ${next.projectId} ആണ്.`);
+          setNotice(`@wrongProject|${FIREBASE_PROJECT}|${next.projectId}`);
           return;
         }
         configRef.current = next;
         setConfig(next);
         if (next) localStorage.setItem(CFG_KEY, JSON.stringify(next));
         else localStorage.removeItem(CFG_KEY);
-        setNotice(next ? "Firebase കോൺഫിഗ് സേവ് ചെയ്തു" : "Firebase കോൺഫിഗ് മാറ്റി");
+        setNotice(next ? "@configSaved" : "@configCleared");
       },
       signInOwner: async () => {
         const cfg = configRef.current;
         if (!cfg) {
-          setNotice("ആദ്യം Firebase കോൺഫിഗ് ഒട്ടിക്കുക");
+          setNotice("@needConfig");
           return;
         }
         setBusy(true);
@@ -273,7 +273,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
           setGoogleAccount(user);
           setBlobs([]);
           setSession({ kind: "owner", backend: "firebase", name: user.name, uid: user.uid, email: user.email });
-          setNotice(`Google അക്കൗണ്ട്: ${user.email || user.name}`);
+          setNotice(`@google|${user.email || user.name}`);
         } catch (e) {
           setNotice(explainFirebase(e));
         } finally {
@@ -283,7 +283,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
       google: async () => {
         const cfg = configRef.current;
         if (!cfg) {
-          const message = "ആദ്യം Firebase കോൺഫിഗ് ഒട്ടിക്കുക";
+          const message = "@needConfig";
           setNotice(message);
           throw new Error(message);
         }
@@ -299,12 +299,12 @@ export function GoProvider({ children }: { children: ReactNode }) {
       lookupShop: async (code: string) => {
         const cfg = configRef.current;
         if (!cfg) {
-          setNotice("ആദ്യം Firebase കോൺഫിഗ് ഒട്ടിക്കുക");
+          setNotice("@needConfig");
           return null;
         }
         try {
           const blob = await (await loadFirebase()).shopByCode(cfg, code);
-          if (!blob) setNotice("ഈ കോഡിൽ ഷോപ്പ് ഇല്ല. ഉടമ കോഡ് പറഞ്ഞത് നോക്കുക.");
+          if (!blob) setNotice("@noShopCode");
           return blob;
         } catch (e) {
           setNotice(explainFirebase(e));
@@ -313,13 +313,13 @@ export function GoProvider({ children }: { children: ReactNode }) {
       },
       claimCustomer: async (shopId, customerId, phone, user) => {
         const cfg = configRef.current;
-        if (!cfg) throw new Error("Firebase കോൺഫിഗ് ഇല്ല");
+        if (!cfg) throw new Error("@noConfig");
         setBusy(true);
         pending.current += 1;
         try {
           const fresh = await (await loadFirebase()).mutateShop(cfg, shopId, (b) => recipeLink(b, customerId, user.uid, phone));
           const customer = fresh.customers.find((c) => c.id === customerId);
-          if (!customer) throw new Error("കസ്റ്റമർ കണ്ടില്ല");
+          if (!customer) throw new Error("@customerMissing");
           setBlobs([fresh]);
           setActiveShopId(fresh.shop.id);
           setSession({
@@ -373,7 +373,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
         setBlobs(demo);
         setActiveShopId(demo[0]?.shop.id ?? null);
         localStorage.setItem(DEMO_KEY, JSON.stringify(demo));
-        setNotice("ഡെമോ ഡാറ്റ വീണ്ടും നിറച്ചു");
+        setNotice("@demoReset");
       },
       addShop: async (input) => {
         const live = sessionRef.current;
@@ -401,7 +401,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
       saveCustomer: (shopId, customer) => commit(shopId, (b) => recipeUpsertCustomer(b, customer)),
       placeOrder: async (shopId, order) => {
         if (order.lines.length === 0) {
-          setNotice("ഒരു ഐറ്റമെങ്കിലും ചേർക്കുക");
+          setNotice("@needItem");
           return;
         }
         await commit(shopId, (b) => recipePlaceOrder(b, order));
@@ -409,7 +409,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
       setStatus: (shopId, orderId, status) => commit(shopId, (b) => recipeStatus(b, orderId, status)),
       collect: (shopId, payment) => {
         if (payment.amount <= 0) {
-          setNotice("തുക എഴുതുക");
+          setNotice("@needAmount");
           return Promise.resolve();
         }
         return commit(shopId, (b) => recipePayment(b, payment));

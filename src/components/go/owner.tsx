@@ -13,19 +13,16 @@ import {
   Truck,
   Users,
 } from "lucide-react";
+import { monthText, serviceText, useI18n, type Copy } from "@/lib/go/i18n";
 import {
   balance,
   billFor,
   inr,
-  shopService,
-  methodLabel,
   monthKey,
-  monthLabel,
   orderTotal,
   qtyText,
   SERVICES,
   shiftMonth,
-  statusLabel,
   todayISO,
 } from "@/lib/go/logic";
 import { FIREBASE_PROJECT, FIRESTORE_RULES, parseFirebaseConfig } from "@/lib/go/config";
@@ -36,37 +33,57 @@ import { Btn, Field, Money, Select, TextInput, shortDate } from "./ui";
 
 type View = "home" | "orders" | "bills" | "routes" | "more" | "people" | "items" | "sales" | "shops" | "settings";
 
-const DOCK: Array<{ id: View; label: string; icon: typeof Home }> = [
-  { id: "home", label: "ഹോം", icon: Home },
-  { id: "orders", label: "ഓർഡർ", icon: ClipboardList },
-  { id: "bills", label: "മാസബിൽ", icon: Receipt },
-  { id: "routes", label: "വിതരണം", icon: Truck },
-  { id: "more", label: "കൂടുതൽ", icon: Settings },
+const DOCK: Array<{ id: View; icon: typeof Home }> = [
+  { id: "home", icon: Home },
+  { id: "orders", icon: ClipboardList },
+  { id: "bills", icon: Receipt },
+  { id: "routes", icon: Truck },
+  { id: "more", icon: Settings },
 ];
+
+function dockLabel(t: Copy, id: View) {
+  if (id === "home") return t.home;
+  if (id === "orders") return t.orders;
+  if (id === "bills") return t.bills;
+  if (id === "routes") return t.routes;
+  return t.more;
+}
+
+function payText(t: Copy, method: PayMethod) {
+  if (method === "cash") return t.cash;
+  if (method === "upi") return "UPI";
+  return t.bank;
+}
 
 export function OwnerApp() {
   const go = useGo();
+  const { lang, t } = useI18n();
   const [view, setView] = useState<View>("home");
   const [compose, setCompose] = useState(false);
   const shop = go.active;
   const moreOn = !["home", "orders", "bills", "routes"].includes(view);
+  const who = go.session?.uid === "demo-owner" ? t.demoOwnerName : go.session?.name;
 
   if (go.blobs.length === 0) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col px-4 py-8">
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>
-            <p className="font-display text-4xl leading-none">GO Service</p>
-            <p className="mt-2 text-sm text-muted">{go.session?.name}. ഏത് സർവീസ് വേണം?</p>
+            <p className="font-display text-4xl leading-none text-stamp">{t.brand}</p>
+            <p className="mt-2 text-sm text-muted">
+              {who}. {t.which}
+            </p>
           </div>
-          <button type="button" className="grid h-11 w-11 place-items-center rounded-full border border-line" onClick={() => void go.signOut()} aria-label="പുറത്ത്">
+          <button
+            type="button"
+            className="grid h-11 w-11 place-items-center rounded-full border border-line"
+            onClick={() => void go.signOut()}
+            aria-label={t.out}
+          >
             <LogOut size={18} />
           </button>
         </div>
-        <ServiceForm
-          submitLabel="ഈ സർവീസ് തുടങ്ങുക"
-          onSubmit={(input) => void go.addShop(input)}
-        />
+        <ServiceForm submitLabel={t.startService} onSubmit={(input) => void go.addShop(input)} />
       </main>
     );
   }
@@ -74,27 +91,27 @@ export function OwnerApp() {
   return (
     <div className="mx-auto min-h-screen w-full max-w-5xl md:grid md:grid-cols-[13rem_1fr]">
       <aside className="no-print hidden border-r border-line p-4 md:block">
-        <p className="font-display text-3xl leading-none">GO Service</p>
-        <p className="mb-4 text-xs text-muted">ഉടമ</p>
+        <p className="font-display text-3xl leading-none text-stamp">{t.brand}</p>
+        <p className="mb-4 text-xs text-muted">{t.owner}</p>
         <nav className="grid gap-1">
           {DOCK.filter((d) => d.id !== "more").map((d) => (
-            <NavBtn key={d.id} active={view === d.id} label={d.label} onClick={() => setView(d.id)} />
+            <NavBtn key={d.id} active={view === d.id} label={dockLabel(t, d.id)} onClick={() => setView(d.id)} />
           ))}
-          <NavBtn active={view === "people"} label="കസ്റ്റമർ" onClick={() => setView("people")} />
-          <NavBtn active={view === "items"} label="ഐറ്റംസ്" onClick={() => setView("items")} />
-          <NavBtn active={view === "sales"} label="സെയിൽസ്" onClick={() => setView("sales")} />
-          <NavBtn active={view === "shops"} label="ഷോപ്പുകൾ" onClick={() => setView("shops")} />
-          <NavBtn active={view === "settings"} label="ക്രമീകരണം" onClick={() => setView("settings")} />
+          <NavBtn active={view === "people"} label={t.customers} onClick={() => setView("people")} />
+          <NavBtn active={view === "items"} label={t.items} onClick={() => setView("items")} />
+          <NavBtn active={view === "sales"} label={t.sales} onClick={() => setView("sales")} />
+          <NavBtn active={view === "shops"} label={t.shops} onClick={() => setView("shops")} />
+          <NavBtn active={view === "settings"} label={t.settings} onClick={() => setView("settings")} />
         </nav>
       </aside>
       <div className="min-w-0">
-        <header className="no-print sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur">
+        <header className="no-print sticky top-14 z-10 flex items-center gap-3 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur">
           <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold">{shop?.shop.name ?? "ഷോപ്പ് ഇല്ല"}</p>
+            <p className="truncate font-semibold">{shop?.shop.name ?? t.noShop}</p>
             <p className="truncate text-xs text-muted">
-              {shop ? `${shopService(shop.shop)} · ${shop.shop.code}` : "സർവീസ് തിരഞ്ഞെടുക്കുക"}
-              {go.session?.backend === "demo" ? " · ഡെമോ" : ""}
-              {go.busy ? " · സേവ് ചെയ്യുന്നു" : ""}
+              {shop ? `${serviceText(lang, shop.shop)} · ${shop.shop.code}` : t.pickService}
+              {go.session?.backend === "demo" ? ` · ${t.demo}` : ""}
+              {go.busy ? ` · ${t.saving}` : ""}
             </p>
           </div>
           {go.blobs.length > 1 && (
@@ -102,7 +119,7 @@ export function OwnerApp() {
               className="field max-w-40"
               value={shop?.shop.id ?? ""}
               onChange={(e) => go.setActiveShop(e.target.value)}
-              aria-label="ഷോപ്പ്"
+              aria-label={t.shop}
             >
               {go.blobs.map((b) => (
                 <option key={b.shop.id} value={b.shop.id}>
@@ -111,7 +128,12 @@ export function OwnerApp() {
               ))}
             </select>
           )}
-          <button type="button" className="grid h-11 w-11 place-items-center rounded-full border border-line" onClick={() => void go.signOut()} aria-label="പുറത്ത്">
+          <button
+            type="button"
+            className="grid h-11 w-11 place-items-center rounded-full border border-line"
+            onClick={() => void go.signOut()}
+            aria-label={t.out}
+          >
             <LogOut size={18} />
           </button>
         </header>
@@ -126,16 +148,10 @@ export function OwnerApp() {
               onRoutes={() => setView("routes")}
             />
           )}
-          {view === "orders" && (
-            <OrdersView compose={compose} setCompose={setCompose} />
-          )}
+          {view === "orders" && <OrdersView compose={compose} setCompose={setCompose} />}
           {view === "bills" && <BillsView />}
           {view === "routes" && <RoutesView />}
-          {view === "more" && (
-            <MoreView
-              onPick={(id) => setView(id)}
-            />
-          )}
+          {view === "more" && <MoreView onPick={(id) => setView(id)} />}
           {view === "people" && <PeopleView />}
           {view === "items" && <ItemsView />}
           {view === "sales" && <SalesView />}
@@ -155,7 +171,7 @@ export function OwnerApp() {
                     onClick={() => setView(d.id === "more" ? "more" : d.id)}
                   >
                     <Icon size={18} />
-                    {d.label}
+                    {dockLabel(t, d.id)}
                   </button>
                 </li>
               );
@@ -181,6 +197,7 @@ function NavBtn({ active, label, onClick }: { active: boolean; label: string; on
 
 function HomeView({ onOrder, onBills, onRoutes }: { onOrder: () => void; onBills: () => void; onRoutes: () => void }) {
   const go = useGo();
+  const { lang, t } = useI18n();
   const shop = go.active;
   if (!shop) return <ShopsView />;
   const today = todayISO();
@@ -194,44 +211,50 @@ function HomeView({ onOrder, onBills, onRoutes }: { onOrder: () => void; onBills
     <div className="grid gap-4">
       <div className="grid grid-cols-2 gap-3">
         <button type="button" onClick={onBills} className="sheet p-4 text-left">
-          <p className="text-sm text-muted">ബാക്കി കടം</p>
-          <p className="mt-1 text-2xl"><Money n={due} tone="due" /></p>
+          <p className="text-sm text-muted">{t.due}</p>
+          <p className="mt-1 text-2xl">
+            <Money n={due} tone="due" />
+          </p>
         </button>
         <button type="button" onClick={onRoutes} className="sheet p-4 text-left">
-          <p className="text-sm text-muted">ഇന്നത്തെ ഓർഡർ</p>
+          <p className="text-sm text-muted">{t.todayOrders}</p>
           <p className="mt-1 font-display text-2xl">{todayOrders.length}</p>
-          <p className="text-xs text-muted">{pending.length} എത്തിയിട്ടില്ല</p>
+          <p className="text-xs text-muted">
+            {pending.length} {t.notYet}
+          </p>
         </button>
       </div>
       <div className="sheet flex items-center justify-between p-4">
         <div>
-          <p className="text-sm text-muted">{monthLabel(month)} പിരിവ്</p>
-          <p className="text-xl"><Money n={collected} tone="paid" /></p>
+          <p className="text-sm text-muted">
+            {monthText(lang, month)} {t.monthCollection}
+          </p>
+          <p className="text-xl">
+            <Money n={collected} tone="paid" />
+          </p>
         </div>
         <Btn tone="gold" onClick={onOrder}>
-          <Plus size={14} /> ഓർഡർ
+          <Plus size={14} /> {t.order}
         </Btn>
       </div>
       <section>
-        <h2 className="mb-2 font-semibold">ഇന്ന് പോകേണ്ടത്</h2>
+        <h2 className="mb-2 font-semibold">{t.todayGo}</h2>
         <ul className="sheet divide-y divide-line">
-          {pending.length === 0 && <li className="p-4 text-sm text-muted">ഇന്ന് ബാക്കി ഡെലിവറി ഇല്ല.</li>}
+          {pending.length === 0 && <li className="p-4 text-sm text-muted">{t.noToday}</li>}
           {pending.map((o) => (
             <li key={o.id} className="flex items-center justify-between gap-3 p-3">
               <div className="min-w-0">
                 <p className="truncate font-medium">{o.customerName}</p>
-                <p className="truncate text-sm text-muted">
-                  {o.lines.map((l) => `${l.name} ${qtyText(l.qty)}`).join(", ")}
-                </p>
+                <p className="truncate text-sm text-muted">{o.lines.map((l) => `${l.name} ${qtyText(l.qty)}`).join(", ")}</p>
               </div>
-              <span className="text-sm">{statusLabel(o.status)}</span>
+              <span className="text-sm">{t.st[o.status]}</span>
             </li>
           ))}
         </ul>
       </section>
       {low.length > 0 && (
         <section>
-          <h2 className="mb-2 font-semibold">കുറഞ്ഞ സ്റ്റോക്ക്</h2>
+          <h2 className="mb-2 font-semibold">{t.lowStock}</h2>
           <ul className="flex flex-wrap gap-2">
             {low.map((i) => (
               <li key={i.id} className="rounded-full bg-due-bg px-3 py-1 text-sm text-due">
@@ -247,10 +270,11 @@ function HomeView({ onOrder, onBills, onRoutes }: { onOrder: () => void; onBills
 
 function OrdersView({ compose, setCompose }: { compose: boolean; setCompose: (v: boolean) => void }) {
   const go = useGo();
+  const { t } = useI18n();
   const shop = go.active;
   const [day, setDay] = useState(todayISO());
   const [filter, setFilter] = useState<"open" | "all">("open");
-  if (!shop) return <p className="text-sm text-muted">ഷോപ്പ് തിരഞ്ഞെടുക്കുക.</p>;
+  if (!shop) return <p className="text-sm text-muted">{t.pickShop}</p>;
   const rows = shop.orders.filter((o) => {
     if (o.date !== day) return false;
     if (filter === "open" && (o.status === "delivered" || o.status === "cancelled")) return false;
@@ -259,23 +283,29 @@ function OrdersView({ compose, setCompose }: { compose: boolean; setCompose: (v:
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end gap-2">
-        <Field label="തീയതി">
+        <Field label={t.date}>
           <TextInput type="date" value={day} onChange={(e) => setDay(e.target.value)} />
         </Field>
-        <Btn tone={filter === "open" ? "ink" : "ghost"} onClick={() => setFilter("open")}>ബാക്കി</Btn>
-        <Btn tone={filter === "all" ? "ink" : "ghost"} onClick={() => setFilter("all")}>എല്ലാം</Btn>
-        <Btn tone="gold" onClick={() => setCompose(!compose)}>{compose ? "അടയ്ക്കുക" : "പുതിയ ഓർഡർ"}</Btn>
+        <Btn tone={filter === "open" ? "ink" : "ghost"} onClick={() => setFilter("open")}>
+          {t.openOnes}
+        </Btn>
+        <Btn tone={filter === "all" ? "ink" : "ghost"} onClick={() => setFilter("all")}>
+          {t.all}
+        </Btn>
+        <Btn tone="gold" onClick={() => setCompose(!compose)}>
+          {compose ? t.close : t.newOrder}
+        </Btn>
       </div>
       {compose && <OrderPad onDone={() => setCompose(false)} />}
       <ul className="grid gap-3">
-        {rows.length === 0 && <li className="text-sm text-muted">ഈ ദിവസം ഓർഡർ ഇല്ല.</li>}
+        {rows.length === 0 && <li className="text-sm text-muted">{t.noDayOrders}</li>}
         {rows.map((o) => (
           <li key={o.id} className="sheet p-3">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-medium">{o.customerName}</p>
                 <p className="text-sm text-muted">
-                  {o.mode === "credit" ? "ക്രെഡിറ്റ്" : "ക്യാഷ്"} · {statusLabel(o.status)}
+                  {o.mode === "credit" ? t.credit : t.cash} · {t.st[o.status]}
                 </p>
               </div>
               <Money n={orderTotal(o)} tone={o.mode === "credit" ? "due" : "paid"} />
@@ -286,10 +316,12 @@ function OrdersView({ compose, setCompose }: { compose: boolean; setCompose: (v:
               <div className="mt-3 flex flex-wrap gap-2">
                 {(["packed", "out", "delivered"] as OrderStatus[]).map((s) => (
                   <Btn key={s} tone={o.status === s ? "ink" : "ghost"} onClick={() => void go.setStatus(shop.shop.id, o.id, s)}>
-                    {statusLabel(s)}
+                    {t.st[s]}
                   </Btn>
                 ))}
-                <Btn tone="ghost" onClick={() => void go.setStatus(shop.shop.id, o.id, "cancelled")}>റദ്ദ്</Btn>
+                <Btn tone="ghost" onClick={() => void go.setStatus(shop.shop.id, o.id, "cancelled")}>
+                  {t.cancel}
+                </Btn>
               </div>
             )}
           </li>
@@ -301,6 +333,7 @@ function OrdersView({ compose, setCompose }: { compose: boolean; setCompose: (v:
 
 function BillsView() {
   const go = useGo();
+  const { lang, t } = useI18n();
   const shop = go.active;
   const [month, setMonth] = useState(monthKey());
   const [openId, setOpenId] = useState<string | null>(null);
@@ -334,20 +367,30 @@ function BillsView() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between gap-2">
-        <Btn tone="ghost" onClick={() => setMonth(shiftMonth(month, -1))}>മുമ്പ്</Btn>
-        <h2 className="font-display text-xl">{monthLabel(month)}</h2>
-        <Btn tone="ghost" onClick={() => setMonth(shiftMonth(month, 1))}>അടുത്തത്</Btn>
+        <Btn tone="ghost" onClick={() => setMonth(shiftMonth(month, -1))}>
+          {t.prev}
+        </Btn>
+        <h2 className="font-display text-xl">{monthText(lang, month)}</h2>
+        <Btn tone="ghost" onClick={() => setMonth(shiftMonth(month, 1))}>
+          {t.next}
+        </Btn>
       </div>
       <p className="text-sm text-muted">
-        ഈ മാസത്തെ ബാക്കി <Money n={totalDue} tone="due" />. ക്രെഡിറ്റ് മാത്രം കടത്തിൽ വരും.
+        {t.monthDue} <Money n={totalDue} tone="due" />. {t.creditOnly}
       </p>
       <ul className="grid gap-2">
         {rows.map(({ c, bill }) => (
           <li key={c.id}>
-            <button type="button" className="sheet flex w-full items-center justify-between gap-3 p-3 text-left" onClick={() => setOpenId(openId === c.id ? null : c.id)}>
+            <button
+              type="button"
+              className="sheet flex w-full items-center justify-between gap-3 p-3 text-left"
+              onClick={() => setOpenId(openId === c.id ? null : c.id)}
+            >
               <span>
                 <span className="block font-medium">{c.name}</span>
-                <span className="text-sm text-muted">{c.route || "റൂട്ട് ഇല്ല"} · വാങ്ങൽ {inr(bill.sales)}</span>
+                <span className="text-sm text-muted">
+                  {c.route || t.noRoute} · {t.bought} {inr(bill.sales)}
+                </span>
               </span>
               <Money n={bill.due} tone={bill.due > 0 ? "due" : "paid"} />
             </button>
@@ -360,46 +403,81 @@ function BillsView() {
             <div>
               <p className="text-sm text-muted">{shop.shop.name}</p>
               <h3 className="font-display text-2xl">{open.c.name}</h3>
-              <p className="text-sm text-muted">{monthLabel(month)} · {open.c.phone}</p>
+              <p className="text-sm text-muted">
+                {monthText(lang, month)} · {open.c.phone}
+              </p>
             </div>
-            <button type="button" className="no-print grid h-11 w-11 place-items-center rounded-full border border-line" onClick={() => window.print()} aria-label="പ്രിന്റ്">
+            <button
+              type="button"
+              className="no-print grid h-11 w-11 place-items-center rounded-full border border-line"
+              onClick={() => window.print()}
+              aria-label={t.print}
+            >
               <Printer size={18} />
             </button>
           </div>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-            <div><dt className="text-muted">തുടക്ക ബാക്കി</dt><dd><Money n={open.bill.opening} /></dd></div>
-            <div><dt className="text-muted">ക്രെഡിറ്റ് വാങ്ങൽ</dt><dd><Money n={open.bill.sales} /></dd></div>
-            <div><dt className="text-muted">പിരിവ്</dt><dd><Money n={open.bill.collected} tone="paid" /></dd></div>
-            <div><dt className="text-muted">ഇപ്പോഴത്തെ കടം</dt><dd><Money n={open.bill.due} tone="due" /></dd></div>
+            <div>
+              <dt className="text-muted">{t.opening}</dt>
+              <dd>
+                <Money n={open.bill.opening} />
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted">{t.creditBuy}</dt>
+              <dd>
+                <Money n={open.bill.sales} />
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted">{t.collected}</dt>
+              <dd>
+                <Money n={open.bill.collected} tone="paid" />
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted">{t.dueNow}</dt>
+              <dd>
+                <Money n={open.bill.due} tone="due" />
+              </dd>
+            </div>
           </dl>
-          {open.bill.cash > 0 && <p className="mt-2 text-sm text-muted">ക്യാഷ് വാങ്ങൽ {inr(open.bill.cash)} കടത്തിൽ ചേർത്തിട്ടില്ല.</p>}
+          {open.bill.cash > 0 && (
+            <p className="mt-2 text-sm text-muted">
+              {t.cash} {inr(open.bill.cash)}. {t.cashAside}
+            </p>
+          )}
           <ul className="mt-3 divide-y divide-line text-sm">
             {shop.orders
               .filter((o) => o.customerId === open.c.id && o.date.slice(0, 7) === month && o.status !== "cancelled")
               .map((o) => (
                 <li key={o.id} className="flex justify-between gap-2 py-2">
-                  <span>{shortDate(o.date)} · {o.lines.map((l) => l.name).join(", ")} · {o.mode === "cash" ? "ക്യാഷ്" : "ക്രെഡിറ്റ്"}</span>
+                  <span>
+                    {shortDate(o.date)} · {o.lines.map((l) => l.name).join(", ")} · {o.mode === "cash" ? t.cash : t.credit}
+                  </span>
                   <span>{inr(orderTotal(o))}</span>
                 </li>
               ))}
           </ul>
           {shop.shop.upi && <p className="mt-3 text-sm">UPI: {shop.shop.upi}</p>}
           <div className="no-print mt-4 grid gap-2 border-t border-line pt-4">
-            <h4 className="font-semibold">പണം വാങ്ങി രേഖ</h4>
+            <h4 className="font-semibold">{t.recordPay}</h4>
             <div className="grid grid-cols-2 gap-2">
-              <Field label="തുക">
+              <Field label={t.amount}>
                 <TextInput inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
               </Field>
-              <Field label="വഴി">
+              <Field label={t.via}>
                 <Select value={method} onChange={(e) => setMethod(e.target.value as PayMethod)}>
-                  <option value="cash">ക്യാഷ്</option>
+                  <option value="cash">{t.cash}</option>
                   <option value="upi">UPI</option>
-                  <option value="bank">ബാങ്ക്</option>
+                  <option value="bank">{t.bank}</option>
                 </Select>
               </Field>
             </div>
-            <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="കുറിപ്പ്" />
-            <Btn tone="paid" disabled={go.busy} onClick={() => void collect()}>പിരിവ് സേവ്</Btn>
+            <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder={t.note} />
+            <Btn tone="paid" disabled={go.busy} onClick={() => void collect()}>
+              {t.savePay}
+            </Btn>
           </div>
         </article>
       )}
@@ -409,6 +487,7 @@ function BillsView() {
 
 function RoutesView() {
   const go = useGo();
+  const { t } = useI18n();
   const shop = go.active;
   const [day, setDay] = useState(todayISO());
   const groups = useMemo(() => {
@@ -417,21 +496,23 @@ function RoutesView() {
     const map = new Map<string, typeof orders>();
     for (const o of orders) {
       const customer = shop.customers.find((c) => c.id === o.customerId);
-      const route = customer?.route || "റൂട്ട് ഇല്ല";
+      const route = customer?.route || t.noRoute;
       map.set(route, [...(map.get(route) ?? []), o]);
     }
     return [...map.entries()];
-  }, [shop, day]);
+  }, [shop, day, t.noRoute]);
   if (!shop) return null;
   return (
     <div className="grid gap-4">
-      <Field label="വിതരണ ദിവസം">
+      <Field label={t.deliveryDay}>
         <TextInput type="date" value={day} onChange={(e) => setDay(e.target.value)} />
       </Field>
-      {groups.length === 0 && <p className="text-sm text-muted">ഈ ദിവസം വിതരണം ഇല്ല.</p>}
+      {groups.length === 0 && <p className="text-sm text-muted">{t.noRouteDay}</p>}
       {groups.map(([route, orders]) => (
         <section key={route}>
-          <h2 className="mb-2 flex items-center gap-2 font-semibold"><Truck size={16} /> {route}</h2>
+          <h2 className="mb-2 flex items-center gap-2 font-semibold">
+            <Truck size={16} /> {route}
+          </h2>
           <ul className="grid gap-2">
             {orders.map((o) => (
               <li key={o.id} className="sheet p-3">
@@ -440,11 +521,15 @@ function RoutesView() {
                     <p className="font-medium">{o.customerName}</p>
                     <p className="text-sm text-muted">{o.lines.map((l) => `${l.name} ${qtyText(l.qty)}`).join(", ")}</p>
                   </div>
-                  <span className="text-sm">{statusLabel(o.status)}</span>
+                  <span className="text-sm">{t.st[o.status]}</span>
                 </div>
                 <div className="mt-2 flex gap-2">
-                  <Btn tone="ghost" onClick={() => void go.setStatus(shop.shop.id, o.id, "out")}>വഴിയിൽ</Btn>
-                  <Btn tone="paid" onClick={() => void go.setStatus(shop.shop.id, o.id, "delivered")}>എത്തി</Btn>
+                  <Btn tone="ghost" onClick={() => void go.setStatus(shop.shop.id, o.id, "out")}>
+                    {t.onWay}
+                  </Btn>
+                  <Btn tone="paid" onClick={() => void go.setStatus(shop.shop.id, o.id, "delivered")}>
+                    {t.arrived}
+                  </Btn>
                 </div>
               </li>
             ))}
@@ -456,12 +541,13 @@ function RoutesView() {
 }
 
 function MoreView({ onPick }: { onPick: (id: View) => void }) {
+  const { t } = useI18n();
   const items: Array<{ id: View; label: string; hint: string; icon: typeof Users }> = [
-    { id: "people", label: "കസ്റ്റമേഴ്സ്", hint: "ക്രെഡിറ്റ് പരിധി, റൂട്ട്", icon: Users },
-    { id: "items", label: "ഐറ്റംസ്", hint: "വില, സ്റ്റോക്ക്", icon: Package },
-    { id: "sales", label: "സെയിൽസ്", hint: "ക്യാഷും ക്രെഡിറ്റും", icon: BarChart3 },
-    { id: "shops", label: "ഷോപ്പുകൾ", hint: "ബേക്കറി, ഹോൾസെയിൽ", icon: Store },
-    { id: "settings", label: "ക്രമീകരണം", hint: "Firebase, ഡെമോ", icon: Settings },
+    { id: "people", label: t.customers, hint: t.peopleHint, icon: Users },
+    { id: "items", label: t.items, hint: t.itemsHint, icon: Package },
+    { id: "sales", label: t.sales, hint: t.salesHint, icon: BarChart3 },
+    { id: "shops", label: t.shops, hint: t.shopsHint, icon: Store },
+    { id: "settings", label: t.settings, hint: t.settingsHint, icon: Settings },
   ];
   return (
     <ul className="grid gap-2">
@@ -485,6 +571,7 @@ function MoreView({ onPick }: { onPick: (id: View) => void }) {
 
 function PeopleView() {
   const go = useGo();
+  const { t } = useI18n();
   const shop = go.active;
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<Customer | null>(null);
@@ -501,8 +588,16 @@ function PeopleView() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold">കസ്റ്റമേഴ്സ്</h2>
-        <Btn tone="stamp" onClick={() => { setEdit(null); setOpen(true); }}><Plus size={16} /> പുതിയത്</Btn>
+        <h2 className="font-semibold">{t.customers}</h2>
+        <Btn
+          tone="stamp"
+          onClick={() => {
+            setEdit(null);
+            setOpen(true);
+          }}
+        >
+          <Plus size={16} /> {t.newOne}
+        </Btn>
       </div>
       {open && (
         <PersonForm
@@ -524,12 +619,17 @@ function PeopleView() {
               <button
                 type="button"
                 className="sheet flex w-full items-center justify-between gap-3 p-3 text-left"
-                onClick={() => { setEdit(c); setOpen(true); }}
+                onClick={() => {
+                  setEdit(c);
+                  setOpen(true);
+                }}
               >
                 <span>
                   <span className="block font-medium">{c.name}</span>
-                  <span className="text-sm text-muted">{c.phone} · {c.route || "റൂട്ട് ഇല്ല"}</span>
-                  {over && <span className="block text-sm text-due">പരിധി കഴിഞ്ഞു</span>}
+                  <span className="text-sm text-muted">
+                    {c.phone} · {c.route || t.noRoute}
+                  </span>
+                  {over && <span className="block text-sm text-due">{t.overLimit}</span>}
                 </span>
                 <Money n={due} tone={due > 0 ? "due" : "paid"} />
               </button>
@@ -541,7 +641,16 @@ function PeopleView() {
   );
 }
 
-function PersonForm({ initial, onSave, onClose }: { initial: Customer; onSave: (c: Customer) => Promise<void>; onClose: () => void }) {
+function PersonForm({
+  initial,
+  onSave,
+  onClose,
+}: {
+  initial: Customer;
+  onSave: (c: Customer) => Promise<void>;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
   const [name, setName] = useState(initial.name);
   const [phone, setPhone] = useState(initial.phone);
   const [route, setRoute] = useState(initial.route);
@@ -564,14 +673,28 @@ function PersonForm({ initial, onSave, onClose }: { initial: Customer; onSave: (
         });
       }}
     >
-      <Field label="പേര്"><TextInput value={name} onChange={(e) => setName(e.target.value)} required /></Field>
-      <Field label="ഫോൺ"><TextInput value={phone} inputMode="tel" onChange={(e) => setPhone(e.target.value)} required /></Field>
-      <Field label="റൂട്ട്"><TextInput value={route} onChange={(e) => setRoute(e.target.value)} placeholder="പാലയം" /></Field>
-      <Field label="ക്രെഡിറ്റ് പരിധി"><TextInput inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} placeholder="0 = പരിധി ഇല്ല" /></Field>
-      <Field label="കുറിപ്പ്"><TextInput value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+      <Field label={t.name}>
+        <TextInput value={name} onChange={(e) => setName(e.target.value)} required />
+      </Field>
+      <Field label={t.phone}>
+        <TextInput value={phone} inputMode="tel" onChange={(e) => setPhone(e.target.value)} required />
+      </Field>
+      <Field label={t.route}>
+        <TextInput value={route} onChange={(e) => setRoute(e.target.value)} placeholder={t.routePh} />
+      </Field>
+      <Field label={t.limit}>
+        <TextInput inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} placeholder={t.noLimit} />
+      </Field>
+      <Field label={t.note}>
+        <TextInput value={note} onChange={(e) => setNote(e.target.value)} />
+      </Field>
       <div className="flex gap-2">
-        <Btn type="submit" tone="stamp">സേവ്</Btn>
-        <Btn type="button" tone="ghost" onClick={onClose}>അടയ്ക്കുക</Btn>
+        <Btn type="submit" tone="stamp">
+          {t.save}
+        </Btn>
+        <Btn type="button" tone="ghost" onClick={onClose}>
+          {t.close}
+        </Btn>
       </div>
     </form>
   );
@@ -579,16 +702,25 @@ function PersonForm({ initial, onSave, onClose }: { initial: Customer; onSave: (
 
 function ItemsView() {
   const go = useGo();
+  const { t } = useI18n();
   const shop = go.active;
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<Item | null>(null);
   if (!shop) return null;
-  const blank: Item = { id: "", shopId: shop.shop.id, name: "", unit: "എണ്ണം", price: 0, stock: 0, active: true };
+  const blank: Item = { id: "", shopId: shop.shop.id, name: "", unit: t.piece, price: 0, stock: 0, active: true };
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold">ഐറ്റംസ്</h2>
-        <Btn tone="stamp" onClick={() => { setEdit(null); setOpen(true); }}><Plus size={16} /> പുതിയത്</Btn>
+        <h2 className="font-semibold">{t.items}</h2>
+        <Btn
+          tone="stamp"
+          onClick={() => {
+            setEdit(null);
+            setOpen(true);
+          }}
+        >
+          <Plus size={16} /> {t.newOne}
+        </Btn>
       </div>
       {open && (
         <ItemForm
@@ -604,10 +736,19 @@ function ItemsView() {
       <ul className="grid gap-2">
         {shop.items.map((it) => (
           <li key={it.id}>
-            <button type="button" className="sheet flex w-full items-center justify-between gap-3 p-3 text-left" onClick={() => { setEdit(it); setOpen(true); }}>
+            <button
+              type="button"
+              className="sheet flex w-full items-center justify-between gap-3 p-3 text-left"
+              onClick={() => {
+                setEdit(it);
+                setOpen(true);
+              }}
+            >
               <span>
                 <span className={`block font-medium ${it.active ? "" : "text-muted"}`}>{it.name}</span>
-                <span className="text-sm text-muted">സ്റ്റോക്ക് {qtyText(it.stock)} {it.unit}</span>
+                <span className="text-sm text-muted">
+                  {t.stock} {qtyText(it.stock)} {it.unit}
+                </span>
               </span>
               <Money n={it.price} />
             </button>
@@ -618,7 +759,16 @@ function ItemsView() {
   );
 }
 
-function ItemForm({ initial, onSave, onClose }: { initial: Item; onSave: (item: Item) => Promise<void>; onClose: () => void }) {
+function ItemForm({
+  initial,
+  onSave,
+  onClose,
+}: {
+  initial: Item;
+  onSave: (item: Item) => Promise<void>;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
   const [name, setName] = useState(initial.name);
   const [unit, setUnit] = useState(initial.unit);
   const [price, setPrice] = useState(String(initial.price || ""));
@@ -634,26 +784,38 @@ function ItemForm({ initial, onSave, onClose }: { initial: Item; onSave: (item: 
           ...initial,
           id: initial.id || crypto.randomUUID(),
           name: name.trim(),
-          unit: unit.trim() || "എണ്ണം",
+          unit: unit.trim() || t.piece,
           price: Number(price || 0),
           stock: Number(stock || 0),
           active,
         });
       }}
     >
-      <Field label="പേര്"><TextInput value={name} onChange={(e) => setName(e.target.value)} required /></Field>
+      <Field label={t.name}>
+        <TextInput value={name} onChange={(e) => setName(e.target.value)} required />
+      </Field>
       <div className="grid grid-cols-3 gap-2">
-        <Field label="യൂണിറ്റ്"><TextInput value={unit} onChange={(e) => setUnit(e.target.value)} /></Field>
-        <Field label="വില"><TextInput inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} /></Field>
-        <Field label="സ്റ്റോക്ക്"><TextInput inputMode="decimal" value={stock} onChange={(e) => setStock(e.target.value)} /></Field>
+        <Field label={t.unit}>
+          <TextInput value={unit} onChange={(e) => setUnit(e.target.value)} />
+        </Field>
+        <Field label={t.price}>
+          <TextInput inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+        </Field>
+        <Field label={t.stock}>
+          <TextInput inputMode="decimal" value={stock} onChange={(e) => setStock(e.target.value)} />
+        </Field>
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-        ഓർഡറിൽ കാണിക്കുക
+        {t.showOnOrder}
       </label>
       <div className="flex gap-2">
-        <Btn type="submit" tone="stamp">സേവ്</Btn>
-        <Btn type="button" tone="ghost" onClick={onClose}>അടയ്ക്കുക</Btn>
+        <Btn type="submit" tone="stamp">
+          {t.save}
+        </Btn>
+        <Btn type="button" tone="ghost" onClick={onClose}>
+          {t.close}
+        </Btn>
       </div>
     </form>
   );
@@ -661,6 +823,7 @@ function ItemForm({ initial, onSave, onClose }: { initial: Item; onSave: (item: 
 
 function SalesView() {
   const go = useGo();
+  const { lang, t } = useI18n();
   const shop = go.active;
   const month = monthKey();
   if (!shop) return null;
@@ -682,39 +845,59 @@ function SalesView() {
   const max = top[0]?.amount || 1;
   return (
     <div className="grid gap-4">
-      <h2 className="font-semibold">{monthLabel(month)} സെയിൽസ്</h2>
+      <h2 className="font-semibold">
+        {monthText(lang, month)} {t.sales}
+      </h2>
       <div className="grid grid-cols-2 gap-3">
-        <div className="sheet p-3"><p className="text-sm text-muted">ക്രെഡിറ്റ്</p><Money n={credit} tone="due" /></div>
-        <div className="sheet p-3"><p className="text-sm text-muted">ക്യാഷ്</p><Money n={cash} tone="paid" /></div>
-        <div className="sheet p-3"><p className="text-sm text-muted">പിരിവ്</p><Money n={collected} tone="paid" /></div>
-        <div className="sheet p-3"><p className="text-sm text-muted">മൊത്തം കടം</p><Money n={due} tone="due" /></div>
+        <div className="sheet p-3">
+          <p className="text-sm text-muted">{t.credit}</p>
+          <Money n={credit} tone="due" />
+        </div>
+        <div className="sheet p-3">
+          <p className="text-sm text-muted">{t.cash}</p>
+          <Money n={cash} tone="paid" />
+        </div>
+        <div className="sheet p-3">
+          <p className="text-sm text-muted">{t.collected}</p>
+          <Money n={collected} tone="paid" />
+        </div>
+        <div className="sheet p-3">
+          <p className="text-sm text-muted">{t.totalDebt}</p>
+          <Money n={due} tone="due" />
+        </div>
       </div>
       <section className="sheet p-4">
-        <h3 className="mb-3 font-medium">ഏറ്റവും പോയ ഐറ്റംസ്</h3>
+        <h3 className="mb-3 font-medium">{t.topItems}</h3>
         <ul className="grid gap-3">
           {top.map((row) => (
             <li key={row.name}>
               <div className="mb-1 flex justify-between text-sm">
                 <span>{row.name}</span>
-                <span>{qtyText(row.qty)} · {inr(row.amount)}</span>
+                <span>
+                  {qtyText(row.qty)} · {inr(row.amount)}
+                </span>
               </div>
-              <div className="h-2 rounded-full bg-paper">
+              <div className="h-2 rounded-full bg-line">
                 <div className="h-2 rounded-full bg-stamp" style={{ width: `${Math.max(8, (row.amount / max) * 100)}%` }} />
               </div>
             </li>
           ))}
-          {top.length === 0 && <li className="text-sm text-muted">ഈ മാസം സെയിൽ ഇല്ല.</li>}
+          {top.length === 0 && <li className="text-sm text-muted">{t.noSales}</li>}
         </ul>
       </section>
       <section>
-        <h3 className="mb-2 font-medium">ഈ മാസം പിരിവ്</h3>
+        <h3 className="mb-2 font-medium">{t.monthPays}</h3>
         <ul className="sheet divide-y divide-line">
-          {shop.payments.filter((p) => p.date.slice(0, 7) === month).map((p) => (
-            <li key={p.id} className="flex items-center justify-between gap-3 p-3 text-sm">
-              <span>{shortDate(p.date)} · {p.customerName} · {methodLabel(p.method)}</span>
-              <Money n={p.amount} tone="paid" />
-            </li>
-          ))}
+          {shop.payments
+            .filter((p) => p.date.slice(0, 7) === month)
+            .map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+                <span>
+                  {shortDate(p.date)} · {p.customerName} · {payText(t, p.method)}
+                </span>
+                <Money n={p.amount} tone="paid" />
+              </li>
+            ))}
         </ul>
       </section>
     </div>
@@ -723,17 +906,20 @@ function SalesView() {
 
 function ShopsView() {
   const go = useGo();
+  const { lang, t } = useI18n();
   const [open, setOpen] = useState(go.blobs.length === 0);
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold">ഷോപ്പുകൾ</h2>
-        <Btn tone="stamp" onClick={() => setOpen(true)}><Plus size={16} /> പുതിയ ഷോപ്പ്</Btn>
+        <h2 className="font-semibold">{t.shops}</h2>
+        <Btn tone="stamp" onClick={() => setOpen(true)}>
+          <Plus size={16} /> {t.newShop}
+        </Btn>
       </div>
       {open && (
         <div className="sheet p-4">
           <ServiceForm
-            submitLabel="ഷോപ്പ് ഉണ്ടാക്കുക"
+            submitLabel={t.makeShop}
             onSubmit={(input) => {
               void go.addShop(input);
               setOpen(false);
@@ -747,7 +933,7 @@ function ShopsView() {
             <button type="button" className="sheet w-full p-4 text-left" onClick={() => go.setActiveShop(b.shop.id)}>
               <span className="font-medium">{b.shop.name}</span>
               <span className="mt-1 block text-sm text-muted">
-                {shopService(b.shop)} · കോഡ് {b.shop.code} · {b.customers.length} കസ്റ്റമർ
+                {serviceText(lang, b.shop)} · {t.code} {b.shop.code} · {b.customers.length} {t.customerCount}
               </span>
             </button>
           </li>
@@ -764,6 +950,7 @@ function ServiceForm({
   submitLabel: string;
   onSubmit: (input: { name: string; kind: ShopKind; serviceName?: string; phone: string; address: string; upi: string }) => void;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [kind, setKind] = useState<ShopKind | "">("");
   const [custom, setCustom] = useState("");
@@ -796,45 +983,55 @@ function ServiceForm({
             key={s.id}
             type="button"
             className={`min-h-11 rounded-2xl border px-3 py-3 text-left text-sm font-medium ${
-              kind === s.id ? "border-ink bg-ink text-paper" : "border-line bg-paper"
+              kind === s.id ? "border-stamp bg-stamp text-stamp-ink" : "border-line bg-paper text-ink"
             } ${s.id === "custom" ? "col-span-2" : ""}`}
             onClick={() => setKind(s.id)}
           >
-            {s.id === "custom" ? "മറ്റൊന്ന് · സ്വയം ടൈപ്പ് ചെയ്യുക" : s.label}
+            {s.id === "custom" ? t.customBtn : t.svc[s.id]}
           </button>
         ))}
       </div>
       {kind === "custom" && (
-        <Field label="സർവീസിന്റെ പേര്">
-          <TextInput value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="ഉദാഹരണം: വാട്ടർ സപ്ലൈ" required />
+        <Field label={t.serviceName}>
+          <TextInput value={custom} onChange={(e) => setCustom(e.target.value)} placeholder={t.serviceEg} required />
         </Field>
       )}
-      <Field label="കടയുടെ പേര്">
+      <Field label={t.shopName}>
         <TextInput value={name} onChange={(e) => setName(e.target.value)} required />
       </Field>
-      <Field label="ഫോൺ"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
-      <Field label="വിലാസം"><TextInput value={address} onChange={(e) => setAddress(e.target.value)} /></Field>
-      <Field label="UPI"><TextInput value={upi} onChange={(e) => setUpi(e.target.value)} placeholder="shop@upi" /></Field>
-      <Btn type="submit" tone="stamp" disabled={!ready}>{submitLabel}</Btn>
+      <Field label={t.phone}>
+        <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} />
+      </Field>
+      <Field label={t.address}>
+        <TextInput value={address} onChange={(e) => setAddress(e.target.value)} />
+      </Field>
+      <Field label="UPI">
+        <TextInput value={upi} onChange={(e) => setUpi(e.target.value)} placeholder="shop@upi" />
+      </Field>
+      <Btn type="submit" tone="stamp" disabled={!ready}>
+        {submitLabel}
+      </Btn>
     </form>
   );
 }
 
 function SettingsView() {
   const go = useGo();
+  const { t } = useI18n();
   const [paste, setPaste] = useState("");
+  const who = go.session?.uid === "demo-owner" ? t.demoOwnerName : go.session?.name;
   return (
     <div className="grid gap-4">
-      <h2 className="font-semibold">ക്രമീകരണം</h2>
+      <h2 className="font-semibold">{t.settings}</h2>
       <section className="sheet p-4">
-        <h3 className="font-medium">ബാക്കെൻഡ് അക്കൗണ്ട്</h3>
+        <h3 className="font-medium">{t.backendLine}</h3>
         <p className="mt-1 text-sm leading-6 text-muted">
-          ബാക്കെൻഡ് Firebase {FIREBASE_PROJECT}. ലോഗിൻ Google.
+          {t.backendLine} {FIREBASE_PROJECT}. {t.googleLine}{" "}
           {go.session?.backend === "firebase"
-            ? ` ഇപ്പോൾ: ${go.session.email || go.session.name}. പ്രോജക്റ്റ് ${go.config?.projectId ?? ""}.`
-            : " വെബ് കോൺഫിഗ് ഉണ്ട്. Google ഉടമ അമർത്തുക."}
+            ? `${t.now} ${go.session.email || go.session.name}. ${t.project} ${go.config?.projectId ?? ""}.`
+            : t.readyGoogle}
         </p>
-        <textarea className="field mt-3" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder="firebaseConfig ഒട്ടിക്കുക" />
+        <textarea className="field mt-3" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={t.pasteConfig} />
         <div className="mt-3 flex flex-wrap gap-2">
           <Btn
             tone="ink"
@@ -843,22 +1040,33 @@ function SettingsView() {
               if (cfg) go.saveConfig(cfg);
             }}
           >
-            സേവ്
+            {t.save}
           </Btn>
-          <Btn tone="ghost" onClick={() => void navigator.clipboard.writeText(FIRESTORE_RULES)}>Rules കോപ്പി</Btn>
+          <Btn tone="ghost" onClick={() => void navigator.clipboard.writeText(FIRESTORE_RULES)}>
+            {t.copyRulesShort}
+          </Btn>
           {go.session?.backend === "demo" && (
-            <Btn tone="stamp" disabled={go.busy} onClick={() => void go.signInOwner()}>Google ഉടമ</Btn>
+            <Btn tone="stamp" disabled={go.busy} onClick={() => void go.signInOwner()}>
+              {t.ownerGoogle}
+            </Btn>
           )}
         </div>
       </section>
       {go.session?.backend === "demo" && (
         <section className="sheet p-4">
-          <h3 className="font-medium">ഡെമോ</h3>
-          <p className="mt-1 text-sm text-muted">സാമ്പിൾ ബേക്കറിയും ഹോൾസെയിലും തിരികെ കൊണ്ടുവരും. നിങ്ങൾ ചേർത്ത ഡെമോ മാറ്റങ്ങൾ പോകും.</p>
-          <Btn className="mt-3" tone="ghost" onClick={go.resetDemo}>ഡെമോ വീണ്ടും നിറയ്ക്കുക</Btn>
+          <h3 className="font-medium">{t.demoTitle}</h3>
+          <p className="mt-1 text-sm text-muted">{t.demoBody}</p>
+          <Btn className="mt-3" tone="ghost" onClick={go.resetDemo}>
+            {t.refill}
+          </Btn>
         </section>
       )}
-      <Btn tone="ghost" onClick={() => void go.signOut()}>പുറത്ത് കടക്കുക</Btn>
+      <p className="text-sm text-muted">
+        {t.now} {who}
+      </p>
+      <Btn tone="ghost" onClick={() => void go.signOut()}>
+        {t.out}
+      </Btn>
     </div>
   );
 }

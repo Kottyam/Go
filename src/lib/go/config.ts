@@ -30,18 +30,13 @@ export type FbUser = { uid: string; name: string; email: string };
 
 export function explainFirebase(e: unknown) {
   const code = typeof e === "object" && e && "code" in e ? String((e as { code: string }).code) : "";
-  if (code.includes("popup-blocked") || code.includes("operation-not-supported")) {
-    return "ഈ വിൻഡോയിൽ Google പോപ്പ്-അപ്പ് തുറക്കുന്നില്ല. ആപ്പ് പബ്ലിഷ് ചെയ്ത ശേഷം ഫോണിലോ ബ്രൗസറിലോ തുറന്ന് വീണ്ടും ശ്രമിക്കുക. ഇപ്പോൾ ഡെമോയിൽ എല്ലാം നോക്കാം.";
-  }
-  if (code.includes("popup-closed")) return "Google വിൻഡോ അടച്ചു. വീണ്ടും ശ്രമിക്കുക.";
-  if (code.includes("unauthorized-domain")) {
-    return "ഈ സൈറ്റ് Firebase-ൽ അനുവദിച്ചിട്ടില്ല. Authentication → Settings → Authorized domains-ൽ ഡൊമൈൻ ചേർക്കുക.";
-  }
-  if (code.includes("permission-denied")) {
-    return "Firestore rules അനുവദിച്ചില്ല. ക്രമീകരണത്തിലെ റൂൾസ് കോപ്പി ചെയ്ത് Publish ചെയ്യുക.";
-  }
+  if (code.includes("popup-blocked") || code.includes("operation-not-supported")) return "@popupBlocked";
+  if (code.includes("popup-closed")) return "@popupClosed";
+  if (code.includes("unauthorized-domain")) return "@unauthorized";
+  if (code.includes("permission-denied")) return "@denied";
+  if (e instanceof Error && e.message.startsWith("@")) return e.message;
   if (e instanceof Error && e.message) return e.message;
-  return "Firebase-മായി ബന്ധപ്പെടാൻ കഴിഞ്ഞില്ല.";
+  return "@firebase";
 }
 
 export function parseFirebaseConfig(text: string): FirebaseConfig | null {

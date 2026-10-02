@@ -106,11 +106,11 @@ export async function mutateShop(
   let written: ShopBlob | null = null;
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
-    if (!snap.exists()) throw new Error("ഷോപ്പ് കണ്ടില്ല");
+    if (!snap.exists()) throw new Error("@shopMissing");
     written = plain(recipe(snap.data() as ShopBlob));
     tx.set(ref, written);
   });
-  if (!written) throw new Error("സേവ് ആയില്ല");
+  if (!written) throw new Error("@saveFailed");
   return written;
 }
 
