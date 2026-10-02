@@ -26,7 +26,6 @@ import {
   todayISO,
   memberUser,
 } from "@/lib/go/logic";
-import { FIREBASE_PROJECT, FIRESTORE_RULES, parseFirebaseConfig } from "@/lib/go/config";
 import { useGo } from "@/lib/go/store";
 import type { Customer, Item, OrderStatus, PayMethod, ShopKind, WorkMode } from "@/lib/go/types";
 import { OrderPad } from "./order-pad";
@@ -1311,7 +1310,6 @@ function ServiceForm({
 function SettingsView() {
   const go = useGo();
   const { t } = useI18n();
-  const [paste, setPaste] = useState("");
   const [sure, setSure] = useState(false);
   const who = go.session?.uid === "demo-owner" ? t.demoOwnerName : go.session?.name;
   const shop = go.active;
@@ -1345,27 +1343,6 @@ function SettingsView() {
           )}
         </section>
       )}
-      <details className="sheet p-4">
-        <summary className="cursor-pointer text-sm text-muted">{t.advanced}</summary>
-        <p className="mt-3 text-sm leading-6 text-muted">
-          {t.backendLine} {FIREBASE_PROJECT}. {go.session?.email || ""}
-        </p>
-        <textarea className="field mt-3" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={t.pasteConfig} />
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Btn
-            tone="ink"
-            onClick={() => {
-              const cfg = parseFirebaseConfig(paste);
-              if (cfg) go.saveConfig(cfg);
-            }}
-          >
-            {t.save}
-          </Btn>
-          <Btn tone="ghost" onClick={() => void navigator.clipboard.writeText(FIRESTORE_RULES)}>
-            {t.copyRulesShort}
-          </Btn>
-        </div>
-      </details>
     </div>
   );
 }
