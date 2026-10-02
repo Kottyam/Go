@@ -1,10 +1,12 @@
 package com.alien1729.goservice;
 
+import android.content.Intent;
 import android.net.Uri;
 import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.Bundle;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -12,14 +14,20 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.webkit.WebViewAssetLoader;
 
+import org.json.JSONObject;
+
 public class MainActivity extends AppCompatActivity {
     private WebView webView;
+    private String pendingToken = "";
+    private String pendingAccess = "";
+    private boolean pageReady = false;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -40,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setDatabaseEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setUseWideViewPort(true);
-        settings.setLoadWithOverviewMode(false);
+        settings.setLoadWithOverviewMode(true);
         settings.setSupportZoom(false);
         settings.setUserAgentString(
                 "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36 GoServiceApp");
@@ -54,6 +62,8 @@ public class MainActivity extends AppCompatActivity {
         final WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
                 .addPathHandler("/", new WebViewAssetLoader.AssetsPathHandler(this))
                 .build();
+
+        webView.addJavascriptInterface(new Bridge(), "GoAndroid");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -76,6 +86,8 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
+                pageReady = true;
+                deliverToken();
                 if (url != null && url.contains("accounts.google.com")) {
                     view.evaluateJavascript(
                             "(function(){var s=document.documentElement.style;s.boxSizing='border-box';s.paddingTop='12px';s.paddingBottom='28px';s.maxWidth='100%';s.overflowX='hidden';})();",
@@ -95,7 +107,56 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        readAuth(getIntent());
         webView.loadUrl("https://appassets.androidplatform.net/index.html");
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        readAuth(intent);
+        deliverToken();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (pendingToken.isEmpty() && pendingAccess.isEmpty() && webView != null) {
+            webView.evaluateJavascript("window.__goGoogleCancel&&window.__goGoogleCancel()", null);
+        }
+    }
+
+    private void readAuth(Intent intent) {
+        if (intent == null || intent.getData() == null) return;
+        Uri data = intent.getData();
+        if (!"goservice".equals(data.getScheme())) return;
+        pendingToken = data.getQueryParameter("token") == null ? "" : data.getQueryParameter("token");
+        pendingAccess = data.getQueryParameter("access") == null ? "" : data.getQueryParameter("access");
+    }
+
+    private void deliverToken() {
+        if (!pageReady || webView == null) return;
+        if (pendingToken.isEmpty() && pendingAccess.isEmpty()) return;
+        String token = pendingToken;
+        String access = pendingAccess;
+        pendingToken = "";
+        pendingAccess = "";
+        webView.evaluateJavascript(
+                "window.__goGoogleToken&&window.__goGoogleToken(" + JSONObject.quote(token) + "," + JSONObject.quote(access) + ")",
+                null);
+    }
+
+    private void openGoogle() {
+        CustomTabsIntent tabs = new CustomTabsIntent.Builder().setShowTitle(true).build();
+        tabs.launchUrl(this, Uri.parse("https://goservice.online/?app=1"));
+    }
+
+    private class Bridge {
+        @JavascriptInterface
+        public void openGoogle() {
+            runOnUiThread(MainActivity.this::openGoogle);
+        }
     }
 
     private Uri localPage(Uri uri) {

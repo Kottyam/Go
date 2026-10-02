@@ -40,7 +40,7 @@ export function Shell() {
         </div>
       )}
       {!go.session && (
-        <div className="no-print flex justify-end border-b border-line bg-paper px-3 py-2">
+        <div className="no-print flex w-full min-w-0 justify-end overflow-x-hidden border-b border-line bg-paper px-4 py-2">
           <LangSelect />
         </div>
       )}

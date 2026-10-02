@@ -152,6 +152,26 @@ export function GoProvider({ children }: { children: ReactNode }) {
           if (sessionStorage.getItem("go-auth-role") === "customer") return;
           enterOwner(next);
         });
+        if (new URLSearchParams(window.location.search).get("app") === "1") {
+          sessionStorage.setItem("go-app-return", "1");
+        }
+        const handoff = window as Window & {
+          __goGoogleToken?: (token: string, access: string) => void;
+          __goGoogleCancel?: () => void;
+        };
+        handoff.__goGoogleToken = (token, access) => {
+          void (async () => {
+            try {
+              const user = await (await loadFirebase()).signInWithGoogleIdToken(config, token, access);
+              enterOwner(user);
+            } catch (e) {
+              setNotice(explainFirebase(e));
+            }
+          })();
+        };
+        handoff.__goGoogleCancel = () => {
+          window.dispatchEvent(new Event("go-google-cancel"));
+        };
         const user = await fb.takeRedirectUser(config);
         if (gone) return;
         const role = sessionStorage.getItem("go-auth-role");
@@ -161,6 +181,8 @@ export function GoProvider({ children }: { children: ReactNode }) {
         } else if (role === "customer") {
           sessionStorage.setItem("go-customer-return", "1");
           sessionStorage.removeItem("go-auth-role");
+        } else if (sessionStorage.getItem("go-app-return") === "1") {
+          await fb.signInGoogle(config, "owner");
         }
       } catch (e) {
         if (!gone) setNotice(explainFirebase(e));

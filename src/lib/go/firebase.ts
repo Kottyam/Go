@@ -1,5 +1,5 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, getRedirectResult, onAuthStateChanged, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signInAnonymously, signOut, updatePassword } from "firebase/auth";
+import { getAuth, getRedirectResult, onAuthStateChanged, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signInWithCredential, signInAnonymously, signOut, updatePassword } from "firebase/auth";
 import {
   arrayRemove,
   arrayUnion,
@@ -60,7 +60,17 @@ let redirectTask: Promise<FbUser | null> | null = null;
 export function takeRedirectUser(config: FirebaseConfig): Promise<FbUser | null> {
   if (!redirectTask) {
     redirectTask = getRedirectResult(getAuth(appFor(config)))
-      .then((cred) => (cred?.user ? toUser(cred.user) : null))
+      .then((result) => {
+        const google = result ? GoogleAuthProvider.credentialFromResult(result) : null;
+        if ((google?.idToken || google?.accessToken) && sessionStorage.getItem("go-app-return") === "1") {
+          sessionStorage.removeItem("go-app-return");
+          const token = encodeURIComponent(google?.idToken || "");
+          const access = encodeURIComponent(google?.accessToken || "");
+          window.location.href = `goservice://auth?token=${token}&access=${access}`;
+          return null;
+        }
+        return result?.user ? toUser(result.user) : null;
+      })
       .catch((error) => {
         redirectTask = null;
         throw error;
@@ -81,12 +91,26 @@ export function watchGoogleUser(config: FirebaseConfig, onUser: (user: FbUser | 
   });
 }
 
+export async function signInWithGoogleIdToken(config: FirebaseConfig, idToken: string, accessToken = ""): Promise<FbUser> {
+  const cred = await signInWithCredential(getAuth(appFor(config)), GoogleAuthProvider.credential(idToken || null, accessToken || null));
+  return toUser(cred.user);
+}
+
 export async function signInGoogle(config: FirebaseConfig, role: "owner" | "customer" = "owner"): Promise<FbUser> {
   sessionStorage.setItem("go-auth-role", role);
   const auth = getAuth(appFor(config));
   const provider = new GoogleAuthProvider();
-  const inApp = typeof navigator !== "undefined" && navigator.userAgent.includes("GoServiceApp");
   provider.setCustomParameters({ prompt: "select_account" });
+  const bridge = (window as Window & { GoAndroid?: { openGoogle?: () => void } }).GoAndroid;
+  if (sessionStorage.getItem("go-app-return") === "1") {
+    await signInWithRedirect(auth, provider);
+    return new Promise(() => {});
+  }
+  if (typeof navigator !== "undefined" && navigator.userAgent.includes("GoServiceApp") && bridge?.openGoogle) {
+    bridge.openGoogle();
+    return new Promise(() => {});
+  }
+  const inApp = typeof navigator !== "undefined" && navigator.userAgent.includes("GoServiceApp");
   if (inApp) {
     await signInWithRedirect(auth, provider);
     return new Promise(() => {});

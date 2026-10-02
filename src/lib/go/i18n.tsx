@@ -1631,18 +1631,35 @@ export function useI18n() {
 
 export function LangSelect() {
   const { lang, setLang, t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const current = LANGS.find((item) => item.id === lang);
   return (
-    <select
-      aria-label={t.language}
-      className="field h-11 w-auto max-w-36 shrink-0 bg-card px-2 text-sm"
-      value={lang}
-      onChange={(e) => setLang(e.target.value as Lang)}
-    >
-      {LANGS.map((item) => (
-        <option key={item.id} value={item.id}>
-          {item.name}
-        </option>
-      ))}
-    </select>
+    <div className="relative max-w-full">
+      <button
+        type="button"
+        aria-label={t.language}
+        className="h-10 max-w-full truncate rounded-full border border-line bg-card px-3 text-sm font-semibold"
+        onClick={() => setOpen((value) => !value)}
+      >
+        {current?.name ?? "English"}
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-2 w-40 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-card p-1 shadow-md">
+          {LANGS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`block min-h-11 w-full rounded-lg px-3 text-left text-sm ${item.id === lang ? "bg-paid-bg font-semibold" : ""}`}
+              onClick={() => {
+                setLang(item.id);
+                setOpen(false);
+              }}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/go/i18n";
 import { useGo } from "@/lib/go/store";
 import { Btn, Field, TextInput } from "./ui";
@@ -9,6 +9,11 @@ export function Gate() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [auth, setAuth] = useState(false);
+  useEffect(() => {
+    const stop = () => setAuth(false);
+    window.addEventListener("go-google-cancel", stop);
+    return () => window.removeEventListener("go-google-cancel", stop);
+  }, []);
 
   if (auth) {
     return (
