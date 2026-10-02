@@ -3,6 +3,8 @@ package com.alien1729.goservice;
 import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
+import android.view.WindowInsets;
 import android.webkit.CookieManager;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -22,6 +24,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         webView = new WebView(this);
         setContentView(webView);
+        webView.setFitsSystemWindows(true);
+        applyBars();
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -29,8 +33,10 @@ public class MainActivity extends AppCompatActivity {
         settings.setDatabaseEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setUseWideViewPort(true);
-        settings.setLoadWithOverviewMode(true);
-        settings.setUserAgentString(settings.getUserAgentString().replace("; wv", "") + " GoServiceApp");
+        settings.setLoadWithOverviewMode(false);
+        settings.setSupportZoom(false);
+        settings.setUserAgentString(
+                "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36 GoServiceApp");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
@@ -61,5 +67,30 @@ public class MainActivity extends AppCompatActivity {
         });
 
         webView.loadUrl("https://appassets.androidplatform.net/index.html");
+    }
+
+    private void applyBars() {
+        View decor = getWindow().getDecorView();
+        decor.setOnApplyWindowInsetsListener((view, insets) -> {
+            int top;
+            int bottom;
+            int left;
+            int right;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
+                top = bars.top;
+                bottom = bars.bottom;
+                left = bars.left;
+                right = bars.right;
+            } else {
+                top = insets.getSystemWindowInsetTop();
+                bottom = insets.getSystemWindowInsetBottom();
+                left = insets.getSystemWindowInsetLeft();
+                right = insets.getSystemWindowInsetRight();
+            }
+            webView.setPadding(left, top, right, bottom);
+            return insets;
+        });
+        decor.requestApplyInsets();
     }
 }

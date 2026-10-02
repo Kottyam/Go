@@ -31,7 +31,13 @@
     font-family: var(--font-sans);
     min-height: 100%;
     max-width: 100%;
-    overflow-x: clip;
+    overflow-x: hidden;
+  }
+  input,
+  select,
+  textarea,
+  button {
+    max-width: 100%;
   }
   h1,
   h2,
