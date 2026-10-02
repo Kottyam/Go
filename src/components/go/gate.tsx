@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LangSelect, useI18n } from "@/lib/go/i18n";
+import { useI18n } from "@/lib/go/i18n";
 import { useGo } from "@/lib/go/store";
 import { Btn, Field, TextInput } from "./ui";
 
@@ -27,8 +27,7 @@ export function Gate() {
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center overflow-x-hidden px-5 py-8">
-      <LangSelect />
-      <h1 className="brand-mark mt-6 text-center text-3xl leading-tight text-stamp">{t.brand}</h1>
+      <h1 className="brand-mark text-center text-3xl leading-tight text-stamp">{t.brand}</h1>
 
       <Btn
         className="mt-8 w-full"
