@@ -1,0 +1,139 @@
+import { initializeApp, type FirebaseApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import {
+  arrayUnion,
+  doc,
+  getDoc,
+  getFirestore,
+  onSnapshot,
+  runTransaction,
+  setDoc,
+  type Firestore,
+} from "firebase/firestore";
+import type { FbUser } from "./config";
+import type { FirebaseConfig, ShopBlob } from "./types";
+
+const apps = new Map<string, FirebaseApp>();
+
+function plain<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function appFor(config: FirebaseConfig) {
+  const key = `${config.projectId}-${config.appId}`.replace(/[^a-zA-Z0-9_-]/g, "");
+  const existing = apps.get(key);
+  if (existing) return existing;
+  const app = initializeApp(
+    {
+      apiKey: config.apiKey,
+      authDomain: config.authDomain,
+      projectId: config.projectId,
+      appId: config.appId,
+      storageBucket: config.storageBucket || undefined,
+      messagingSenderId: config.messagingSenderId || undefined,
+    },
+    key,
+  );
+  apps.set(key, app);
+  return app;
+}
+
+function dbFor(config: FirebaseConfig): Firestore {
+  return getFirestore(appFor(config));
+}
+
+export async function signInGoogle(config: FirebaseConfig): Promise<FbUser> {
+  const auth = getAuth(appFor(config));
+  const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+  return {
+    uid: cred.user.uid,
+    name: cred.user.displayName || cred.user.email || "Google user",
+    email: cred.user.email || "",
+  };
+}
+
+export async function signOutFirebase(config: FirebaseConfig) {
+  await signOut(getAuth(appFor(config)));
+}
+
+export async function createShop(
+  config: FirebaseConfig,
+  uid: string,
+  blob: ShopBlob,
+  name: string,
+  email: string,
+) {
+  const db = dbFor(config);
+  await setDoc(doc(db, "goShops", blob.shop.id), plain(blob));
+  await setDoc(doc(db, "goCodes", blob.shop.code), { shopId: blob.shop.id });
+  await setDoc(
+    doc(db, "goOwners", uid),
+    { shopIds: arrayUnion(blob.shop.id), name, email },
+    { merge: true },
+  );
+}
+
+export async function mutateShop(
+  config: FirebaseConfig,
+  shopId: string,
+  recipe: (blob: ShopBlob) => ShopBlob,
+): Promise<ShopBlob> {
+  const db = dbFor(config);
+  const ref = doc(db, "goShops", shopId);
+  let written: ShopBlob | null = null;
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error("ഷോപ്പ് കണ്ടില്ല");
+    written = plain(recipe(snap.data() as ShopBlob));
+    tx.set(ref, written);
+  });
+  if (!written) throw new Error("സേവ് ആയില്ല");
+  return written;
+}
+
+export async function shopByCode(config: FirebaseConfig, code: string): Promise<ShopBlob | null> {
+  const db = dbFor(config);
+  const codeSnap = await getDoc(doc(db, "goCodes", code.trim().toUpperCase()));
+  if (!codeSnap.exists()) return null;
+  const shopId = String(codeSnap.data().shopId || "");
+  if (!shopId) return null;
+  const shopSnap = await getDoc(doc(db, "goShops", shopId));
+  if (!shopSnap.exists()) return null;
+  return shopSnap.data() as ShopBlob;
+}
+
+export function subscribeOwner(config: FirebaseConfig, uid: string, cb: (blobs: ShopBlob[]) => void) {
+  const db = dbFor(config);
+  let shopUnsubs: Array<() => void> = [];
+  const stopShops = () => {
+    shopUnsubs.forEach((u) => u());
+    shopUnsubs = [];
+  };
+  const unsub = onSnapshot(doc(db, "goOwners", uid), (snap) => {
+    const ids = ((snap.data()?.shopIds as string[]) ?? []).filter(Boolean);
+    stopShops();
+    if (ids.length === 0) {
+      cb([]);
+      return;
+    }
+    const map = new Map<string, ShopBlob>();
+    for (const id of ids) {
+      const u = onSnapshot(doc(db, "goShops", id), (shopSnap) => {
+        if (shopSnap.exists()) map.set(id, shopSnap.data() as ShopBlob);
+        else map.delete(id);
+        cb(ids.map((i) => map.get(i)).filter((b): b is ShopBlob => Boolean(b)));
+      });
+      shopUnsubs.push(u);
+    }
+  });
+  return () => {
+    unsub();
+    stopShops();
+  };
+}
+
+export function subscribeShop(config: FirebaseConfig, shopId: string, cb: (blob: ShopBlob | null) => void) {
+  return onSnapshot(doc(dbFor(config), "goShops", shopId), (snap) => {
+    cb(snap.exists() ? (snap.data() as ShopBlob) : null);
+  });
+}

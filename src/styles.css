@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans Malayalam", "Segoe UI", sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+  --color-paper: #f4efe6;
+  --color-card: #fffdf8;
+  --color-ink: #1c1814;
+  --color-muted: #6d6458;
+  --color-line: #e4d9c6;
+  --color-due: #9d341c;
+  --color-due-bg: #f8e8e1;
+  --color-paid: #1d6844;
+  --color-paid-bg: #e4f3ea;
+  --color-stamp: #c24e22;
+  --color-stamp-ink: #fff8f3;
+  --color-gold: #e4b84a;
+  --color-gold-ink: #2a1c08;
+  --radius: 0.9rem;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  html,
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    min-height: 100%;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+  input:focus,
+  select:focus,
+  textarea:focus,
+  button:focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    .print-sheet,
+    .print-sheet * {
+      visibility: visible;
+    }
+    .print-sheet {
+      position: absolute;
+      inset: 0;
+      background: white;
+    }
+    .no-print {
+      display: none !important;
+    }
+  }
+}
+
+@layer components {
+  .field {
+    width: 100%;
+    min-height: 2.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-line);
+    background: var(--color-card);
+    padding: 0.45rem 0.8rem;
+  }
+  textarea.field {
+    min-height: 7.5rem;
+    resize: vertical;
+  }
+  .sheet {
+    border-radius: var(--radius);
+    border: 1px solid var(--color-line);
+    background: var(--color-card);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--color-ink) 4%, transparent);
+  }
+  .dock {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
