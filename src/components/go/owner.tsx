@@ -24,6 +24,7 @@ import {
   SERVICES,
   shiftMonth,
   todayISO,
+  memberUser,
 } from "@/lib/go/logic";
 import { FIREBASE_PROJECT, FIRESTORE_RULES, parseFirebaseConfig } from "@/lib/go/config";
 import { useGo } from "@/lib/go/store";
@@ -864,7 +865,7 @@ function PeopleView() {
                   <span className="block font-medium">{c.name}</span>
                   <span className="text-sm text-muted">
                     {c.phone} · {c.route || t.noRoute}
-                    {c.username ? ` · ${t.memberNo} ${c.username}` : ""}
+                    {c.username ? ` · ${memberUser(shop.shop.code, c.username)}` : ""}
                   </span>
                   {c.mustChangePass && <span className="block text-sm text-muted">{t.passSame}</span>}
                   {over && <span className="block text-sm text-due">{t.overLimit}</span>}
@@ -903,6 +904,8 @@ function PersonForm({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const go = useGo();
+  const code = go.active?.shop.code ?? "";
   const [name, setName] = useState(initial.name);
   const [phone, setPhone] = useState(initial.phone);
   const [route, setRoute] = useState(initial.route);
@@ -944,10 +947,20 @@ function PersonForm({
         <TextInput value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       {initial.username ? (
-        <p className="text-sm leading-6 text-muted">
-          {t.memberNo}: {initial.username}
-          {initial.mustChangePass ? `. ${t.passSame}` : ""}
-        </p>
+        <div className="grid gap-2">
+          <p className="text-sm leading-6">
+            {t.username}: {code ? memberUser(code, initial.username) : initial.username}
+          </p>
+          <p className="text-sm leading-6 text-muted">{initial.mustChangePass ? t.passSame : t.memberAuto}</p>
+          <Btn
+            type="button"
+            tone="ghost"
+            disabled={go.busy}
+            onClick={() => void go.resetMemberPassword(initial.shopId, initial.id)}
+          >
+            {t.resetPass}
+          </Btn>
+        </div>
       ) : (
         <p className="text-sm leading-6 text-muted">{t.memberAuto}</p>
       )}

@@ -6,7 +6,6 @@ import { Btn, Field, TextInput } from "./ui";
 export function Gate() {
   const go = useGo();
   const { t } = useI18n();
-  const [shopCode, setShopCode] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [auth, setAuth] = useState(false);
@@ -43,15 +42,12 @@ export function Gate() {
         className="sheet grid min-w-0 gap-3 p-4"
         onSubmit={(e) => {
           e.preventDefault();
-          void go.loginMember(shopCode, username, password);
+          void go.loginMember(username, password);
         }}
       >
         <h2 className="font-semibold">{t.memberTitle}</h2>
-        <Field label={t.shopCode}>
-          <TextInput autoComplete="off" value={shopCode} onChange={(e) => setShopCode(e.target.value)} placeholder="GO2048" required />
-        </Field>
         <Field label={t.username}>
-          <TextInput autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+          <TextInput autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="GO20481" required />
         </Field>
         <Field label={t.password}>
           <TextInput

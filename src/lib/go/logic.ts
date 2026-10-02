@@ -196,6 +196,17 @@ export function memberLoginId(shopCode: string, username: string) {
   return `${shopCode.trim().toUpperCase()}-${username.trim()}`;
 }
 
+export function memberUser(shopCode: string, username: string) {
+  return `${shopCode.trim().toUpperCase()}${username.trim()}`;
+}
+
+export function splitMemberUser(raw: string) {
+  const s = raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const hit = s.match(/^(GO\d{4})(\d+)$/);
+  if (!hit) return null;
+  return { code: hit[1], no: String(Number(hit[2])) };
+}
+
 export function emptyBlob(shop: Shop, ownerUid: string): ShopBlob {
   return { shop, ownerUid, items: [], customers: [], orders: [], payments: [], skips: [], extras: [], rev: 1 };
 }

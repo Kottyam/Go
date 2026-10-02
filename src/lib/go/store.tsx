@@ -16,6 +16,7 @@ import {
   nextShopMemberNo,
   phoneDigits,
   memberLoginId,
+  splitMemberUser,
 } from "./logic";
 import { seed } from "./seed";
 import type { Customer, Extra, FirebaseConfig, Item, Order, OrderStatus, Payment, Session, Shop, ShopBlob } from "./types";
@@ -50,7 +51,7 @@ type GoApi = {
   setActiveShop: (id: string) => void;
   enterDemoOwner: () => void;
   enterDemoCustomer: (customerId: string) => void;
-  loginMember: (shopCode: string, username: string, password: string) => Promise<void>;
+  loginMember: (username: string, password: string) => Promise<void>;
   saveConfig: (config: FirebaseConfig | null) => void;
   signInOwner: () => Promise<void>;
   lookupShop: (code: string) => Promise<ShopBlob | null>;
@@ -289,9 +290,10 @@ export function GoProvider({ children }: { children: ReactNode }) {
           customerId: customer.id,
         });
       },
-      loginMember: async (shopCode, username, password) => {
-        const code = shopCode.trim().toUpperCase();
-        const name = username.trim();
+      loginMember: async (username, password) => {
+        const parsed = splitMemberUser(username);
+        const code = parsed?.code ?? "";
+        const name = parsed?.no ?? "";
         if (!code || !name || !password) {
           setNotice("@badLogin");
           return;
