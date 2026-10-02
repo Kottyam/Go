@@ -132,7 +132,7 @@ export function OwnerApp() {
             <p className="truncate font-semibold">{shop?.shop.name ?? t.noShop}</p>
             <p className="truncate text-xs text-muted">{shop ? serviceText(lang, shop.shop) : t.pickService}</p>
           </div>
-          <LangSelect compact />
+          <LangSelect />
           {go.blobs.length > 1 && (
             <select
               className="field max-w-28 min-w-0"

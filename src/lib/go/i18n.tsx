@@ -4,12 +4,12 @@ import type { ShopKind } from "./types";
 export type Lang = "ml" | "ta" | "kn" | "te" | "hi" | "en";
 
 export const LANGS: { id: Lang; name: string }[] = [
+  { id: "en", name: "English" },
   { id: "ml", name: "മലയാളം" },
   { id: "ta", name: "தமிழ்" },
   { id: "kn", name: "ಕನ್ನಡ" },
   { id: "te", name: "తెలుగు" },
   { id: "hi", name: "हिन्दी" },
-  { id: "en", name: "English" },
 ];
 
 const en = {
@@ -1611,35 +1611,20 @@ export function useI18n() {
   return ctx;
 }
 
-export function LangSelect({ compact = false }: { compact?: boolean }) {
+export function LangSelect() {
   const { lang, setLang, t } = useI18n();
-  if (compact) {
-    return (
-      <button
-        type="button"
-        aria-label={t.language}
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line text-xs font-semibold uppercase"
-        onClick={() => {
-          const i = LANGS.findIndex((item) => item.id === lang);
-          setLang(LANGS[(i + 1) % LANGS.length].id);
-        }}
-      >
-        {lang}
-      </button>
-    );
-  }
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <select
+      aria-label={t.language}
+      className="field h-11 w-auto max-w-36 shrink-0 bg-card px-2 text-sm"
+      value={lang}
+      onChange={(e) => setLang(e.target.value as Lang)}
+    >
       {LANGS.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          className={`min-h-11 rounded-full border px-3 text-sm ${lang === item.id ? "border-stamp bg-stamp text-stamp-ink" : "border-line bg-paper"}`}
-          onClick={() => setLang(item.id)}
-        >
+        <option key={item.id} value={item.id}>
           {item.name}
-        </button>
+        </option>
       ))}
-    </div>
+    </select>
   );
 }
