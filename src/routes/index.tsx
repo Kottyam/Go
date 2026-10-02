@@ -11,7 +11,7 @@ function Home() {
       fallback={
         <div className="grid min-h-screen place-items-center bg-paper text-ink">
           <div className="text-center">
-            <p className="font-display text-5xl">GO</p>
+            <p className="font-display text-5xl">GO Service</p>
             <p className="mt-2 text-sm text-muted">ക്രെഡിറ്റ് ബിൽ</p>
           </div>
         </div>

@@ -17,12 +17,13 @@ import {
   balance,
   billFor,
   inr,
-  kindLabel,
+  shopService,
   methodLabel,
   monthKey,
   monthLabel,
   orderTotal,
   qtyText,
+  SERVICES,
   shiftMonth,
   statusLabel,
   todayISO,
@@ -50,10 +51,30 @@ export function OwnerApp() {
   const shop = go.active;
   const moreOn = !["home", "orders", "bills", "routes"].includes(view);
 
+  if (go.blobs.length === 0) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col px-4 py-8">
+        <div className="mb-6 flex items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-4xl leading-none">GO Service</p>
+            <p className="mt-2 text-sm text-muted">{go.session?.name}. ഏത് സർവീസ് വേണം?</p>
+          </div>
+          <button type="button" className="grid h-11 w-11 place-items-center rounded-full border border-line" onClick={() => void go.signOut()} aria-label="പുറത്ത്">
+            <LogOut size={18} />
+          </button>
+        </div>
+        <ServiceForm
+          submitLabel="ഈ സർവീസ് തുടങ്ങുക"
+          onSubmit={(input) => void go.addShop(input)}
+        />
+      </main>
+    );
+  }
+
   return (
     <div className="mx-auto min-h-screen w-full max-w-5xl md:grid md:grid-cols-[13rem_1fr]">
       <aside className="no-print hidden border-r border-line p-4 md:block">
-        <p className="font-display text-3xl">GO</p>
+        <p className="font-display text-3xl leading-none">GO Service</p>
         <p className="mb-4 text-xs text-muted">ഉടമ</p>
         <nav className="grid gap-1">
           {DOCK.filter((d) => d.id !== "more").map((d) => (
@@ -71,7 +92,7 @@ export function OwnerApp() {
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">{shop?.shop.name ?? "ഷോപ്പ് ഇല്ല"}</p>
             <p className="truncate text-xs text-muted">
-              {shop ? `${kindLabel(shop.shop.kind)} · ${shop.shop.code}` : "പുതിയ ഷോപ്പ് ഉണ്ടാക്കുക"}
+              {shop ? `${shopService(shop.shop)} · ${shop.shop.code}` : "സർവീസ് തിരഞ്ഞെടുക്കുക"}
               {go.session?.backend === "demo" ? " · ഡെമോ" : ""}
               {go.busy ? " · സേവ് ചെയ്യുന്നു" : ""}
             </p>
@@ -703,11 +724,6 @@ function SalesView() {
 function ShopsView() {
   const go = useGo();
   const [open, setOpen] = useState(go.blobs.length === 0);
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<ShopKind>("bakery");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [upi, setUpi] = useState("");
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
@@ -715,32 +731,15 @@ function ShopsView() {
         <Btn tone="stamp" onClick={() => setOpen(true)}><Plus size={16} /> പുതിയ ഷോപ്പ്</Btn>
       </div>
       {open && (
-        <form
-          className="sheet grid gap-3 p-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!name.trim()) return;
-            void go.addShop({ name: name.trim(), kind, phone: phone.trim(), address: address.trim(), upi: upi.trim() });
-            setName("");
-            setOpen(false);
-          }}
-        >
-          <Field label="ഷോപ്പ് പേര്"><TextInput value={name} onChange={(e) => setName(e.target.value)} required /></Field>
-          <Field label="തരം">
-            <Select value={kind} onChange={(e) => setKind(e.target.value as ShopKind)}>
-              <option value="bakery">ബേക്കറി</option>
-              <option value="wholesale">ഹോൾസെയിൽ</option>
-              <option value="kirana">കിരാണ</option>
-              <option value="steel">സ്റ്റീൽ</option>
-              <option value="paint">പെയിന്റ്</option>
-              <option value="other">മറ്റ്</option>
-            </Select>
-          </Field>
-          <Field label="ഫോൺ"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
-          <Field label="വിലാസം"><TextInput value={address} onChange={(e) => setAddress(e.target.value)} /></Field>
-          <Field label="UPI"><TextInput value={upi} onChange={(e) => setUpi(e.target.value)} placeholder="shop@upi" /></Field>
-          <Btn type="submit" tone="stamp">ഷോപ്പ് ഉണ്ടാക്കുക</Btn>
-        </form>
+        <div className="sheet p-4">
+          <ServiceForm
+            submitLabel="ഷോപ്പ് ഉണ്ടാക്കുക"
+            onSubmit={(input) => {
+              void go.addShop(input);
+              setOpen(false);
+            }}
+          />
+        </div>
       )}
       <ul className="grid gap-2">
         {go.blobs.map((b) => (
@@ -748,13 +747,76 @@ function ShopsView() {
             <button type="button" className="sheet w-full p-4 text-left" onClick={() => go.setActiveShop(b.shop.id)}>
               <span className="font-medium">{b.shop.name}</span>
               <span className="mt-1 block text-sm text-muted">
-                {kindLabel(b.shop.kind)} · കോഡ് {b.shop.code} · {b.customers.length} കസ്റ്റമർ
+                {shopService(b.shop)} · കോഡ് {b.shop.code} · {b.customers.length} കസ്റ്റമർ
               </span>
             </button>
           </li>
         ))}
       </ul>
     </div>
+  );
+}
+
+function ServiceForm({
+  submitLabel,
+  onSubmit,
+}: {
+  submitLabel: string;
+  onSubmit: (input: { name: string; kind: ShopKind; serviceName?: string; phone: string; address: string; upi: string }) => void;
+}) {
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<ShopKind | "">("");
+  const [custom, setCustom] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [upi, setUpi] = useState("");
+  const ready = Boolean(kind && name.trim() && (kind !== "custom" || custom.trim()));
+  return (
+    <form
+      className="grid gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!ready || !kind) return;
+        onSubmit({
+          name: name.trim(),
+          kind,
+          serviceName: kind === "custom" ? custom.trim() : undefined,
+          phone: phone.trim(),
+          address: address.trim(),
+          upi: upi.trim(),
+        });
+        setName("");
+        setCustom("");
+        setKind("");
+      }}
+    >
+      <div className="grid grid-cols-2 gap-2">
+        {SERVICES.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            className={`min-h-11 rounded-2xl border px-3 py-3 text-left text-sm font-medium ${
+              kind === s.id ? "border-ink bg-ink text-paper" : "border-line bg-paper"
+            } ${s.id === "custom" ? "col-span-2" : ""}`}
+            onClick={() => setKind(s.id)}
+          >
+            {s.id === "custom" ? "മറ്റൊന്ന് · സ്വയം ടൈപ്പ് ചെയ്യുക" : s.label}
+          </button>
+        ))}
+      </div>
+      {kind === "custom" && (
+        <Field label="സർവീസിന്റെ പേര്">
+          <TextInput value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="ഉദാഹരണം: വാട്ടർ സപ്ലൈ" required />
+        </Field>
+      )}
+      <Field label="കടയുടെ പേര്">
+        <TextInput value={name} onChange={(e) => setName(e.target.value)} required />
+      </Field>
+      <Field label="ഫോൺ"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+      <Field label="വിലാസം"><TextInput value={address} onChange={(e) => setAddress(e.target.value)} /></Field>
+      <Field label="UPI"><TextInput value={upi} onChange={(e) => setUpi(e.target.value)} placeholder="shop@upi" /></Field>
+      <Btn type="submit" tone="stamp" disabled={!ready}>{submitLabel}</Btn>
+    </form>
   );
 }
 

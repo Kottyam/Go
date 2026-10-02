@@ -1,9 +1,21 @@
-export type ShopKind = "bakery" | "wholesale" | "kirana" | "steel" | "paint" | "other";
+export type ShopKind =
+  | "bakery"
+  | "stationery"
+  | "kirana"
+  | "wholesale"
+  | "steel"
+  | "paint"
+  | "hotel"
+  | "medical"
+  | "textile"
+  | "electronics"
+  | "custom";
 
 export type Shop = {
   id: string;
   name: string;
   kind: ShopKind;
+  serviceName?: string;
   phone: string;
   address: string;
   upi: string;

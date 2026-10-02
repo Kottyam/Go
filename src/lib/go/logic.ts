@@ -70,13 +70,27 @@ export function orderTotal(order: { lines: OrderLine[] }) {
   return order.lines.reduce((s, l) => s + l.qty * l.price, 0);
 }
 
+export const SERVICES: { id: ShopKind; label: string }[] = [
+  { id: "bakery", label: "ബേക്കറി" },
+  { id: "stationery", label: "സ്റ്റേഷനറി" },
+  { id: "kirana", label: "കിരാണ" },
+  { id: "wholesale", label: "ഹോൾസെയിൽ" },
+  { id: "steel", label: "സ്റ്റീൽ" },
+  { id: "paint", label: "പെയിന്റ്" },
+  { id: "hotel", label: "ഹോട്ടൽ" },
+  { id: "medical", label: "മെഡിക്കൽ" },
+  { id: "textile", label: "ടെക്സ്റ്റൈൽ" },
+  { id: "electronics", label: "ഇലക്ട്രോണിക്സ്" },
+  { id: "custom", label: "മറ്റൊന്ന്" },
+];
+
 export function kindLabel(kind: ShopKind) {
-  if (kind === "bakery") return "ബേക്കറി";
-  if (kind === "wholesale") return "ഹോൾസെയിൽ";
-  if (kind === "kirana") return "കിരാണ";
-  if (kind === "steel") return "സ്റ്റീൽ";
-  if (kind === "paint") return "പെയിന്റ്";
-  return "മറ്റ് ഷോപ്പ്";
+  return SERVICES.find((s) => s.id === kind)?.label ?? "മറ്റ് സർവീസ്";
+}
+
+export function shopService(shop: { kind: ShopKind; serviceName?: string }) {
+  if (shop.kind === "custom") return shop.serviceName?.trim() || "മറ്റ് സർവീസ്";
+  return kindLabel(shop.kind);
 }
 
 export function statusLabel(s: OrderStatus) {

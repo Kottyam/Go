@@ -86,10 +86,10 @@ export function Gate() {
         <div className="pointer-events-none absolute -right-8 -top-8 grid h-32 w-32 rotate-12 place-items-center rounded-full border-4 border-stamp font-display text-4xl text-stamp">
           GO
         </div>
-        <p className="text-sm font-medium text-stamp">ക്രെഡിറ്റ് ബിൽ · ഓർഡർ · വിതരണം</p>
-        <h1 className="mt-2 font-display text-5xl leading-none">GO</h1>
+        <p className="text-sm font-medium text-stamp">സർവീസ് · ക്രെഡിറ്റ് ബിൽ · ഓർഡർ</p>
+        <h1 className="mt-2 font-display text-5xl leading-none">GO Service</h1>
         <p className="mt-3 max-w-sm text-sm leading-6 text-muted">
-          ബേക്കറി, സ്റ്റീൽ, പെയിന്റ്, ഹോൾസെയിൽ — ഓരോ കടയ്ക്കും സ്വന്തം സാധനങ്ങളും കസ്റ്റമേഴ്സും. ഓർഡർ എൻട്രി, മാസബിൽ, പിരിവ്.
+          Google കയറിയ ശേഷം സർവീസ് തിരഞ്ഞെടുക്കുക. ബേക്കറി, സ്റ്റേഷനറി, അല്ലെങ്കിൽ സ്വന്തം സർവീസ് ടൈപ്പ് ചെയ്യാം.
         </p>
         <div className="mt-6 grid gap-2">
           <Btn tone="stamp" onClick={go.enterDemoOwner}>
