@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CustomerApp } from "./customer";
 import { Gate } from "./gate";
 import { OwnerApp } from "./owner";
+import { SuperApp } from "./super";
 import { LangSelect, noticeText, useI18n } from "@/lib/go/i18n";
 import { useGo } from "@/lib/go/store";
 
@@ -50,6 +51,7 @@ export function Shell() {
       )}
       {go.session?.kind === "owner" && <OwnerApp />}
       {go.session?.kind === "customer" && <CustomerApp />}
+      {go.session?.kind === "super" && <SuperApp />}
     </div>
   );
 }

@@ -3,9 +3,11 @@ import { getAuth, getRedirectResult, onAuthStateChanged, GoogleAuthProvider, cre
 import {
   arrayRemove,
   arrayUnion,
+  collection,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   getFirestore,
   onSnapshot,
   runTransaction,
@@ -218,6 +220,23 @@ export async function createShop(
     { shopIds: arrayUnion(blob.shop.id), name, email },
     { merge: true },
   );
+}
+
+export async function listPlatform(config: FirebaseConfig) {
+  const db = dbFor(config);
+  const ownersSnap = await getDocs(collection(db, "goOwners"));
+  const shopsSnap = await getDocs(collection(db, "goShops"));
+  const owners = ownersSnap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      name: String(data.name || ""),
+      email: String(data.email || ""),
+      shopIds: ((data.shopIds as string[]) ?? []).filter(Boolean),
+    };
+  });
+  const shops = shopsSnap.docs.map((d) => d.data() as ShopBlob);
+  return { owners, shops };
 }
 
 export async function deleteShop(config: FirebaseConfig, uid: string, shopId: string, code: string) {

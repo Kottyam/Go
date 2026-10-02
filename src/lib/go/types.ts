@@ -150,4 +150,11 @@ export type Session =
       email: string;
       shopId: string;
       customerId: string;
+    }
+  | {
+      kind: "super";
+      backend: "demo" | "firebase";
+      name: string;
+      uid: string;
+      email: string;
     };

