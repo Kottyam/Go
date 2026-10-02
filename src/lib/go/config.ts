@@ -15,6 +15,8 @@ service cloud.firestore {
   }
 }`;
 
+export const FIREBASE_PROJECT = "go-1729-b9fc3";
+
 export type FbUser = { uid: string; name: string; email: string };
 
 export function explainFirebase(e: unknown) {

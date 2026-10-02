@@ -27,7 +27,7 @@ import {
   statusLabel,
   todayISO,
 } from "@/lib/go/logic";
-import { FIRESTORE_RULES, parseFirebaseConfig } from "@/lib/go/config";
+import { FIREBASE_PROJECT, FIRESTORE_RULES, parseFirebaseConfig } from "@/lib/go/config";
 import { useGo } from "@/lib/go/store";
 import type { Customer, Item, OrderStatus, PayMethod, ShopKind } from "@/lib/go/types";
 import { OrderPad } from "./order-pad";
@@ -767,7 +767,7 @@ function SettingsView() {
       <section className="sheet p-4">
         <h3 className="font-medium">ബാക്കെൻഡ് അക്കൗണ്ട്</h3>
         <p className="mt-1 text-sm leading-6 text-muted">
-          ബാക്കെൻഡ് Firebase Spark. ലോഗിൻ Google.
+          ബാക്കെൻഡ് Firebase {FIREBASE_PROJECT}. ലോഗിൻ Google.
           {go.session?.backend === "firebase"
             ? ` ഇപ്പോൾ: ${go.session.email || go.session.name}. പ്രോജക്റ്റ് ${go.config?.projectId ?? ""}.`
             : " കോൺഫിഗ് ഒട്ടിച്ച് Google ഉടമ അമർത്തുക."}

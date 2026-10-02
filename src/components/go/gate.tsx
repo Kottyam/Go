@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FIRESTORE_RULES, parseFirebaseConfig, type FbUser } from "@/lib/go/config";
+import { FIREBASE_PROJECT, FIRESTORE_RULES, parseFirebaseConfig, type FbUser } from "@/lib/go/config";
 import { kindLabel } from "@/lib/go/logic";
 import { useGo } from "@/lib/go/store";
 import { Btn, Field, TextInput } from "./ui";
@@ -125,14 +125,14 @@ export function Gate() {
       <section className="mt-4 sheet p-4">
         <h2 className="font-semibold">അവസാനം · Firebase ബാക്കെൻഡ്</h2>
         <p className="mt-1 text-sm leading-6 text-muted">
-          ഡാറ്റ Firebase സൗജന്യ പ്ലാനിൽ. അക്കൗണ്ട് Google സൈൻ-ഇൻ. ഉടമയും കസ്റ്റമറും അവരുടെ Google അക്കൗണ്ട് കൊണ്ട് കയറും.
+          ഡാറ്റ ഈ Firebase പ്രോജക്റ്റിൽ: {FIREBASE_PROJECT}. അക്കൗണ്ട് Google സൈൻ-ഇൻ.
         </p>
         <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm leading-6 text-muted">
-          <li>console.firebase.google.com → പുതിയ പ്രോജക്റ്റ്. പ്ലാൻ Spark (free) മതി.</li>
+          <li>പുതിയ പ്രോജക്റ്റ് വേണ്ട. go-1729-b9fc3 തുറക്കുക.</li>
           <li>Authentication → Sign-in method → Google ഓൺ ചെയ്യുക.</li>
           <li>Firestore Database ഉണ്ടാക്കുക. ലൊക്കേഷൻ asia-south1.</li>
           <li>Rules-ൽ താഴെയുള്ളത് ഒട്ടിച്ച് Publish ചെയ്യുക.</li>
-          <li>Project settings → Web app → firebaseConfig കോപ്പി ചെയ്ത് ഇവിടെ ഒട്ടിക്കുക.</li>
+          <li>Project settings → Web app → firebaseConfig ഇവിടെ ഒട്ടിക്കുക.</li>
         </ol>
         {go.config && (
           <p className="mt-3 text-sm text-paid">കണക്ട് ചെയ്ത പ്രോജക്റ്റ്: {go.config.projectId}</p>
@@ -141,7 +141,7 @@ export function Gate() {
           <textarea
             className="field mt-1"
             value={paste}
-            placeholder={'apiKey: "..."\nauthDomain: "..."\nprojectId: "..."\nappId: "..."'}
+            placeholder={'apiKey: "..."\nauthDomain: "..."\nprojectId: "go-1729-b9fc3"\nappId: "..."'}
             onChange={(e) => setPaste(e.target.value)}
           />
         </Field>

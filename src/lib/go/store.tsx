@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { explainFirebase, type FbUser } from "./config";
+import { explainFirebase, FIREBASE_PROJECT, type FbUser } from "./config";
 import {
   emptyBlob,
   recipeLink,
@@ -249,6 +249,10 @@ export function GoProvider({ children }: { children: ReactNode }) {
         });
       },
       saveConfig: (next) => {
+        if (next && next.projectId !== FIREBASE_PROJECT) {
+          setNotice(`ബാക്കെൻഡ് ${FIREBASE_PROJECT} ആയിരിക്കണം. ഒട്ടിച്ചത് ${next.projectId} ആണ്.`);
+          return;
+        }
         configRef.current = next;
         setConfig(next);
         if (next) localStorage.setItem(CFG_KEY, JSON.stringify(next));
