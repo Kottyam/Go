@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { DEFAULT_FIREBASE, explainFirebase, FIREBASE_PROJECT, type FbUser } from "./config";
 import {
   emptyBlob,
+  recipeDropExtra,
+  recipeExtra,
   recipeLink,
   recipePayment,
   recipePlaceOrder,
@@ -16,7 +18,7 @@ import {
   memberLoginId,
 } from "./logic";
 import { seed } from "./seed";
-import type { Customer, FirebaseConfig, Item, Order, OrderStatus, Payment, Session, Shop, ShopBlob } from "./types";
+import type { Customer, Extra, FirebaseConfig, Item, Order, OrderStatus, Payment, Session, Shop, ShopBlob } from "./types";
 
 const DEMO_KEY = "go-ledger-demo-v2";
 const CFG_KEY = "go-firebase-config";
@@ -65,6 +67,8 @@ type GoApi = {
   setStatus: (shopId: string, orderId: string, status: OrderStatus) => Promise<void>;
   collect: (shopId: string, payment: Payment) => Promise<void>;
   toggleSkip: (shopId: string, customerId: string, date: string) => Promise<void>;
+  addExtra: (shopId: string, extra: Extra) => Promise<void>;
+  dropExtra: (shopId: string, extraId: string) => Promise<void>;
   google: () => Promise<FbUser>;
   googleAccount: FbUser | null;
 };
@@ -558,6 +562,14 @@ export function GoProvider({ children }: { children: ReactNode }) {
         return commit(shopId, (b) => recipePayment(b, payment));
       },
       toggleSkip: (shopId, customerId, date) => commit(shopId, (b) => recipeSkip(b, customerId, date)),
+      addExtra: (shopId, extra) => {
+        if (extra.amount <= 0 || !extra.name.trim()) {
+          setNotice("@needAmount");
+          return Promise.resolve();
+        }
+        return commit(shopId, (b) => recipeExtra(b, { ...extra, name: extra.name.trim() }));
+      },
+      dropExtra: (shopId, extraId) => commit(shopId, (b) => recipeDropExtra(b, extraId)),
       changePassword: async (password) => {
         const live = sessionRef.current;
         if (!live || live.kind !== "customer") return;

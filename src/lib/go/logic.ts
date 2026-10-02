@@ -8,6 +8,7 @@ import type {
   Shop,
   ShopBlob,
   ShopKind,
+  Extra,
 } from "./types";
 
 export function todayISO(d = new Date()) {
@@ -196,7 +197,7 @@ export function memberLoginId(shopCode: string, username: string) {
 }
 
 export function emptyBlob(shop: Shop, ownerUid: string): ShopBlob {
-  return { shop, ownerUid, items: [], customers: [], orders: [], payments: [], skips: [], rev: 1 };
+  return { shop, ownerUid, items: [], customers: [], orders: [], payments: [], skips: [], extras: [], rev: 1 };
 }
 
 export function recipeUpsertItem(b: ShopBlob, item: Item): ShopBlob {
@@ -258,6 +259,14 @@ export function recipeStatus(b: ShopBlob, orderId: string, status: OrderStatus):
   };
 }
 
+export function recipeExtra(b: ShopBlob, extra: Extra): ShopBlob {
+  return { ...b, rev: b.rev + 1, extras: [extra, ...(b.extras ?? [])] };
+}
+
+export function recipeDropExtra(b: ShopBlob, extraId: string): ShopBlob {
+  return { ...b, rev: b.rev + 1, extras: (b.extras ?? []).filter((e) => e.id !== extraId) };
+}
+
 export function recipeSkip(b: ShopBlob, customerId: string, date: string): ShopBlob {
   const skips = b.skips ?? [];
   const has = skips.some((s) => s.customerId === customerId && s.date === date);
@@ -266,6 +275,15 @@ export function recipeSkip(b: ShopBlob, customerId: string, date: string): ShopB
     rev: b.rev + 1,
     skips: has ? skips.filter((s) => !(s.customerId === customerId && s.date === date)) : [...skips, { customerId, date }],
   };
+}
+
+export function passDue(customer: Customer, extras: Extra[] | undefined, payments: Payment[], month: string) {
+  const fee = customer.passAmount ?? 0;
+  const addons = (customer.addons ?? []).reduce((s, a) => s + a.amount, 0);
+  const extra = (extras ?? []).filter((e) => e.customerId === customer.id && e.date.startsWith(month)).reduce((s, e) => s + e.amount, 0);
+  const total = fee + addons + extra;
+  const paid = payments.filter((p) => p.customerId === customer.id && p.date.startsWith(month)).reduce((s, p) => s + p.amount, 0);
+  return { fee, addons, extra, total, paid, due: Math.max(0, total - paid) };
 }
 
 export function recipePayment(b: ShopBlob, payment: Payment): ShopBlob {

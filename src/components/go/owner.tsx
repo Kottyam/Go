@@ -19,6 +19,7 @@ import {
   inr,
   monthKey,
   orderTotal,
+  passDue,
   qtyText,
   SERVICES,
   shiftMonth,
@@ -365,7 +366,6 @@ function PassView() {
   const go = useGo();
   const { t } = useI18n();
   const shop = go.active;
-  const month = monthKey(todayISO());
   if (!shop) return null;
   return (
     <div className="grid gap-3">
@@ -374,46 +374,143 @@ function PassView() {
         <p className="text-sm text-muted">{t.workFixedHint}</p>
       </div>
       {shop.customers.length === 0 && <p className="text-sm text-muted">{t.noPeople}</p>}
-      {shop.customers.map((c) => {
-        const paid = shop.payments.filter((p) => p.customerId === c.id && p.date.startsWith(month)).reduce((s, p) => s + p.amount, 0);
-        const fee = c.passAmount ?? 0;
-        const done = fee > 0 && paid >= fee;
-        return (
-          <div key={c.id} className="sheet grid gap-3 p-4">
-            <p className="text-lg font-semibold">{c.name}</p>
-            <Field label={t.feeWord}>
-              <TextInput
-                inputMode="decimal"
-                defaultValue={fee ? String(fee) : ""}
-                onBlur={(e) => {
-                  const n = Number(e.target.value) || 0;
-                  if (n === fee) return;
-                  void go.saveCustomer(shop.shop.id, { ...c, passAmount: n });
-                }}
-              />
-            </Field>
-            <p className="text-sm text-muted">{done ? t.paidWord : inr(Math.max(0, fee - paid))}</p>
-            <Btn
-              tone={done ? "ghost" : "stamp"}
-              disabled={done || fee <= 0 || go.busy}
-              onClick={() =>
-                void go.collect(shop.shop.id, {
-                  id: crypto.randomUUID(),
-                  shopId: shop.shop.id,
-                  customerId: c.id,
-                  customerName: c.name,
-                  date: todayISO(),
-                  amount: Math.max(0, fee - paid),
-                  method: "cash",
-                  note: t.workFixed,
-                })
-              }
-            >
-              {done ? t.paidWord : t.markPaid}
-            </Btn>
+      <div className="grid gap-3 md:grid-cols-2">
+        {shop.customers.map((c) => (
+          <PassCard key={c.id} customer={c} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PassCard({ customer }: { customer: Customer }) {
+  const go = useGo();
+  const { t } = useI18n();
+  const shop = go.active;
+  const month = monthKey(todayISO());
+  const [addonName, setAddonName] = useState("");
+  const [addonAmt, setAddonAmt] = useState("");
+  const [extraName, setExtraName] = useState("");
+  const [extraAmt, setExtraAmt] = useState("");
+  if (!shop) return null;
+  const due = passDue(customer, shop.extras, shop.payments, month);
+  const todayExtras = (shop.extras ?? []).filter((e) => e.customerId === customer.id && e.date.startsWith(month));
+  const done = due.total > 0 && due.due === 0;
+  return (
+    <div className="sheet grid gap-3 p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-lg font-semibold">{customer.name}</p>
+        <p className="text-lg">{inr(due.due)}</p>
+      </div>
+      <Field label={t.feeWord}>
+        <TextInput
+          inputMode="decimal"
+          defaultValue={due.fee ? String(due.fee) : ""}
+          onBlur={(e) => {
+            const n = Number(e.target.value) || 0;
+            if (n === due.fee) return;
+            void go.saveCustomer(shop.shop.id, { ...customer, passAmount: n });
+          }}
+        />
+      </Field>
+      <div className="grid gap-2">
+        <p className="text-sm text-muted">{t.addon}</p>
+        {(customer.addons ?? []).map((a) => (
+          <div key={a.id} className="flex items-center justify-between gap-2 text-sm">
+            <span className="min-w-0 truncate">{a.name}</span>
+            <span className="flex items-center gap-2">
+              {inr(a.amount)}
+              <button
+                type="button"
+                className="text-muted"
+                onClick={() => void go.saveCustomer(shop.shop.id, { ...customer, addons: (customer.addons ?? []).filter((x) => x.id !== a.id) })}
+              >
+                {t.cancel}
+              </button>
+            </span>
           </div>
-        );
-      })}
+        ))}
+        <div className="grid grid-cols-[1fr_5.5rem_auto] gap-2">
+          <TextInput value={addonName} placeholder={t.addonPh} onChange={(e) => setAddonName(e.target.value)} />
+          <TextInput inputMode="decimal" value={addonAmt} placeholder="0" onChange={(e) => setAddonAmt(e.target.value)} />
+          <Btn
+            type="button"
+            tone="ghost"
+            onClick={() => {
+              const amount = Number(addonAmt) || 0;
+              if (!addonName.trim() || amount <= 0) return;
+              void go.saveCustomer(shop.shop.id, {
+                ...customer,
+                addons: [...(customer.addons ?? []), { id: crypto.randomUUID(), name: addonName.trim(), amount }],
+              });
+              setAddonName("");
+              setAddonAmt("");
+            }}
+          >
+            {t.addWord}
+          </Btn>
+        </div>
+      </div>
+      <div className="grid gap-2">
+        <p className="text-sm text-muted">{t.todayExtra}</p>
+        {todayExtras.map((e) => (
+          <div key={e.id} className="flex items-center justify-between gap-2 text-sm">
+            <span className="min-w-0 truncate">
+              {shortDate(e.date)} · {e.name}
+            </span>
+            <span className="flex items-center gap-2">
+              {inr(e.amount)}
+              <button type="button" className="text-muted" onClick={() => void go.dropExtra(shop.shop.id, e.id)}>
+                {t.cancel}
+              </button>
+            </span>
+          </div>
+        ))}
+        <div className="grid grid-cols-[1fr_5.5rem_auto] gap-2">
+          <TextInput value={extraName} placeholder={t.extraPh} onChange={(e) => setExtraName(e.target.value)} />
+          <TextInput inputMode="decimal" value={extraAmt} placeholder="0" onChange={(e) => setExtraAmt(e.target.value)} />
+          <Btn
+            type="button"
+            tone="ghost"
+            onClick={() => {
+              const amount = Number(extraAmt) || 0;
+              if (!extraName.trim() || amount <= 0) return;
+              void go.addExtra(shop.shop.id, {
+                id: crypto.randomUUID(),
+                customerId: customer.id,
+                date: todayISO(),
+                name: extraName.trim(),
+                amount,
+              });
+              setExtraName("");
+              setExtraAmt("");
+            }}
+          >
+            {t.addWord}
+          </Btn>
+        </div>
+      </div>
+      <p className="text-sm text-muted">
+        {t.monthTotal} {inr(due.total)} · {t.paidWord} {inr(due.paid)}
+      </p>
+      <Btn
+        tone={done ? "ghost" : "stamp"}
+        disabled={done || due.due <= 0 || go.busy}
+        onClick={() =>
+          void go.collect(shop.shop.id, {
+            id: crypto.randomUUID(),
+            shopId: shop.shop.id,
+            customerId: customer.id,
+            customerName: customer.name,
+            date: todayISO(),
+            amount: due.due,
+            method: "cash",
+            note: t.workFixed,
+          })
+        }
+      >
+        {done ? t.paidWord : t.markPaid}
+      </Btn>
     </div>
   );
 }
@@ -434,6 +531,7 @@ function RoundView() {
         <p className="text-sm text-muted">{t.workDailyHint}</p>
       </div>
       {shop.customers.length === 0 && <p className="text-sm text-muted">{t.noPeople}</p>}
+      <div className="grid gap-3 md:grid-cols-2">
       {shop.customers.map((c) => {
         const off = skips.filter((s) => s.customerId === c.id && s.date.startsWith(month)).length;
         const away = skips.some((s) => s.customerId === c.id && s.date === today);
@@ -465,6 +563,7 @@ function RoundView() {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

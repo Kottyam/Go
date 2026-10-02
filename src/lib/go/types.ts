@@ -41,6 +41,20 @@ export type Item = {
   active: boolean;
 };
 
+export type Addon = {
+  id: string;
+  name: string;
+  amount: number;
+};
+
+export type Extra = {
+  id: string;
+  customerId: string;
+  date: string;
+  name: string;
+  amount: number;
+};
+
 export type Customer = {
   id: string;
   shopId: string;
@@ -51,6 +65,7 @@ export type Customer = {
   note: string;
   passAmount?: number;
   dayRate?: number;
+  addons?: Addon[];
   linkedUid?: string;
   username?: string;
   passHash?: string;
@@ -106,6 +121,7 @@ export type ShopBlob = {
   orders: Order[];
   payments: Payment[];
   skips?: DayOff[];
+  extras?: Extra[];
   rev: number;
 };
 
