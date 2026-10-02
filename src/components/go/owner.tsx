@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   ClipboardList,
-  Home,
   LogOut,
   Package,
   Plus,
@@ -27,25 +26,19 @@ import {
 } from "@/lib/go/logic";
 import { FIREBASE_PROJECT, FIRESTORE_RULES, parseFirebaseConfig } from "@/lib/go/config";
 import { useGo } from "@/lib/go/store";
-import type { Customer, Item, OrderStatus, PayMethod, ShopKind } from "@/lib/go/types";
+import type { Customer, Item, OrderStatus, PayMethod, ShopKind, WorkMode } from "@/lib/go/types";
 import { OrderPad } from "./order-pad";
 import { Btn, Field, Money, Select, TextInput, shortDate } from "./ui";
 
 type View = "home" | "orders" | "bills" | "routes" | "more" | "people" | "items" | "sales" | "shops" | "settings";
-
-const DOCK: Array<{ id: View; icon: typeof Home }> = [
-  { id: "home", icon: Home },
-  { id: "orders", icon: ClipboardList },
-  { id: "bills", icon: Receipt },
-  { id: "routes", icon: Truck },
-  { id: "more", icon: Settings },
-];
 
 function dockLabel(t: Copy, id: View) {
   if (id === "home") return t.home;
   if (id === "orders") return t.orders;
   if (id === "bills") return t.bills;
   if (id === "routes") return t.routes;
+  if (id === "people") return t.customers;
+  if (id === "items") return t.items;
   return t.more;
 }
 
@@ -58,10 +51,30 @@ function payText(t: Copy, method: PayMethod) {
 export function OwnerApp() {
   const go = useGo();
   const { lang, t } = useI18n();
-  const [view, setView] = useState<View>("home");
-  const [compose, setCompose] = useState(false);
   const shop = go.active;
-  const moreOn = !["home", "orders", "bills", "routes"].includes(view);
+  const work: WorkMode = shop?.shop.work ?? "order";
+  const door: View = work === "fixed" ? "bills" : "orders";
+  const [view, setView] = useState<View>(door);
+  const [compose, setCompose] = useState(false);
+  useEffect(() => {
+    setView(door);
+  }, [shop?.shop.id, door]);
+  const dock = useMemo(() => {
+    if (work === "fixed") {
+      return [
+        { id: "bills" as View, icon: Receipt },
+        { id: "people" as View, icon: Users },
+        { id: "more" as View, icon: Settings },
+      ];
+    }
+    return [
+      { id: "orders" as View, icon: ClipboardList },
+      { id: "people" as View, icon: Users },
+      { id: "items" as View, icon: Package },
+      { id: "more" as View, icon: Settings },
+    ];
+  }, [work]);
+  const moreOn = view === "more" || view === "settings" || view === "shops" || view === "sales";
 
   if (go.blobs.length === 0) {
     return (
@@ -94,11 +107,9 @@ export function OwnerApp() {
         <p className="brand-mark text-3xl leading-none text-stamp">{t.brand}</p>
         <p className="mb-4 text-xs text-muted">{t.owner}</p>
         <nav className="grid gap-1">
-          {DOCK.filter((d) => d.id !== "more").map((d) => (
+          {dock.filter((d) => d.id !== "more").map((d) => (
             <NavBtn key={d.id} active={view === d.id} label={dockLabel(t, d.id)} onClick={() => setView(d.id)} />
           ))}
-          <NavBtn active={view === "people"} label={t.customers} onClick={() => setView("people")} />
-          <NavBtn active={view === "items"} label={t.items} onClick={() => setView("items")} />
           <NavBtn active={view === "sales"} label={t.sales} onClick={() => setView("sales")} />
           <NavBtn active={view === "shops"} label={t.shops} onClick={() => setView("shops")} />
           <NavBtn active={view === "settings"} label={t.settings} onClick={() => setView("settings")} />
@@ -156,8 +167,8 @@ export function OwnerApp() {
           {view === "settings" && <SettingsView />}
         </div>
         <nav className="dock no-print fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card md:hidden">
-          <ul className="mx-auto grid max-w-lg grid-cols-5">
-            {DOCK.map((d) => {
+          <ul className="mx-auto grid max-w-lg" style={{ gridTemplateColumns: `repeat(${dock.length}, minmax(0, 1fr))` }}>
+            {dock.map((d) => {
               const Icon = d.icon;
               const on = d.id === "more" ? moreOn : view === d.id;
               return (
@@ -978,19 +989,25 @@ function ServiceForm({
   onSubmit,
 }: {
   submitLabel: string;
-  onSubmit: (input: { name: string; kind: ShopKind; serviceName?: string; phone: string; address: string; upi: string }) => void;
+  onSubmit: (input: { name: string; kind: ShopKind; serviceName?: string; work: WorkMode; phone: string; address: string; upi: string }) => void;
 }) {
   const { t } = useI18n();
   const [service, setService] = useState("");
   const [kind, setKind] = useState<ShopKind>("custom");
+  const [work, setWork] = useState<WorkMode | "">("");
   const [shop, setShop] = useState("");
-  const ready = Boolean(service.trim() && shop.trim());
+  const ready = Boolean(service.trim() && shop.trim() && work);
+  const ways: Array<{ id: WorkMode; label: string }> = [
+    { id: "order", label: t.workOrder },
+    { id: "fixed", label: t.workFixed },
+    { id: "daily", label: t.workDaily },
+  ];
   return (
     <form
       className="grid gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!ready) return;
+        if (!ready || !work) return;
         const named = service.trim();
         const byLabel = SERVICES.find((s) => s.id !== "custom" && t.svc[s.id].toLowerCase() === named.toLowerCase());
         const resolved: ShopKind = byLabel?.id ?? "custom";
@@ -998,15 +1015,30 @@ function ServiceForm({
           name: shop.trim(),
           kind: resolved,
           serviceName: resolved === "custom" ? named : undefined,
+          work,
           phone: "",
           address: "",
           upi: "",
         });
         setService("");
         setShop("");
+        setWork("");
         setKind("custom");
       }}
     >
+      <p className="text-sm text-muted">{t.pickWork}</p>
+      <div className="grid gap-2">
+        {ways.map((way) => (
+          <button
+            key={way.id}
+            type="button"
+            className={`min-h-11 rounded-full border px-3 text-sm ${work === way.id ? "border-stamp bg-stamp text-stamp-ink" : "border-line bg-paper"}`}
+            onClick={() => setWork(way.id)}
+          >
+            {way.label}
+          </button>
+        ))}
+      </div>
       <Field label={t.nameService}>
         <TextInput value={service} onChange={(e) => { setService(e.target.value); setKind("custom"); }} placeholder={t.serviceEg} required />
       </Field>

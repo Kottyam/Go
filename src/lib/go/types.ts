@@ -17,11 +17,14 @@ export type ShopKind =
   | "laundry"
   | "custom";
 
+export type WorkMode = "order" | "fixed" | "daily";
+
 export type Shop = {
   id: string;
   name: string;
   kind: ShopKind;
   serviceName?: string;
+  work: WorkMode;
   phone: string;
   address: string;
   upi: string;
