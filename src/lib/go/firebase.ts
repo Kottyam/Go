@@ -86,7 +86,7 @@ export async function signInGoogle(config: FirebaseConfig, role: "owner" | "cust
   const auth = getAuth(appFor(config));
   const provider = new GoogleAuthProvider();
   const inApp = typeof navigator !== "undefined" && navigator.userAgent.includes("GoServiceApp");
-  provider.setCustomParameters({ prompt: inApp ? "login" : "select_account" });
+  provider.setCustomParameters({ prompt: "select_account" });
   if (inApp) {
     await signInWithRedirect(auth, provider);
     return new Promise(() => {});

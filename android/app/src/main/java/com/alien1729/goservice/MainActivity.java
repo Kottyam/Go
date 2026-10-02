@@ -1,10 +1,9 @@
 package com.alien1729.goservice;
 
+import android.net.Uri;
 import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.Bundle;
-import android.view.View;
-import android.view.WindowInsets;
 import android.webkit.CookieManager;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -13,6 +12,10 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.webkit.WebViewAssetLoader;
 
 public class MainActivity extends AppCompatActivity {
@@ -22,10 +25,14 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         webView = new WebView(this);
         setContentView(webView);
-        webView.setFitsSystemWindows(true);
-        applyBars();
+        ViewCompat.setOnApplyWindowInsetsListener(webView, (view, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return WindowInsetsCompat.CONSUMED;
+        });
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -51,7 +58,29 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                return loader.shouldInterceptRequest(request.getUrl());
+                return loader.shouldInterceptRequest(localPage(request.getUrl()));
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                Uri uri = request.getUrl();
+                if (uri != null && "appassets.androidplatform.net".equals(uri.getHost())) {
+                    String path = uri.getPath();
+                    if (path == null || path.isEmpty() || "/".equals(path)) {
+                        view.loadUrl(uri.buildUpon().path("/index.html").build().toString());
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                if (url != null && url.contains("accounts.google.com")) {
+                    view.evaluateJavascript(
+                            "(function(){var s=document.documentElement.style;s.boxSizing='border-box';s.paddingTop='12px';s.paddingBottom='28px';s.maxWidth='100%';s.overflowX='hidden';})();",
+                            null);
+                }
             }
         });
 
@@ -69,28 +98,12 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("https://appassets.androidplatform.net/index.html");
     }
 
-    private void applyBars() {
-        View decor = getWindow().getDecorView();
-        decor.setOnApplyWindowInsetsListener((view, insets) -> {
-            int top;
-            int bottom;
-            int left;
-            int right;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
-                top = bars.top;
-                bottom = bars.bottom;
-                left = bars.left;
-                right = bars.right;
-            } else {
-                top = insets.getSystemWindowInsetTop();
-                bottom = insets.getSystemWindowInsetBottom();
-                left = insets.getSystemWindowInsetLeft();
-                right = insets.getSystemWindowInsetRight();
-            }
-            webView.setPadding(left, top, right, bottom);
-            return insets;
-        });
-        decor.requestApplyInsets();
+    private Uri localPage(Uri uri) {
+        if (uri == null || !"appassets.androidplatform.net".equals(uri.getHost())) return uri;
+        String path = uri.getPath();
+        if (path == null || path.isEmpty() || "/".equals(path)) {
+            return uri.buildUpon().path("/index.html").build();
+        }
+        return uri;
     }
 }
