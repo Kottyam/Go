@@ -17,6 +17,15 @@ service cloud.firestore {
 
 export const FIREBASE_PROJECT = "go-1729-b9fc3";
 
+export const DEFAULT_FIREBASE: FirebaseConfig = {
+  apiKey: "AIzaSyAQt2HjW3BoX2YsQdQ66I7ao7aHLIaMrog",
+  authDomain: "go-1729-b9fc3.firebaseapp.com",
+  projectId: "go-1729-b9fc3",
+  storageBucket: "go-1729-b9fc3.firebasestorage.app",
+  messagingSenderId: "535180088089",
+  appId: "1:535180088089:web:e4cde232e4513af9feab88",
+};
+
 export type FbUser = { uid: string; name: string; email: string };
 
 export function explainFirebase(e: unknown) {

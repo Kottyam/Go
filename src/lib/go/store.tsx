@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { explainFirebase, FIREBASE_PROJECT, type FbUser } from "./config";
+import { DEFAULT_FIREBASE, explainFirebase, FIREBASE_PROJECT, type FbUser } from "./config";
 import {
   emptyBlob,
   recipeLink,
@@ -77,7 +77,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
   const [blobs, setBlobs] = useState<ShopBlob[]>([]);
   const [activeShopId, setActiveShopId] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [config, setConfig] = useState<FirebaseConfig | null>(null);
+  const [config, setConfig] = useState<FirebaseConfig | null>(DEFAULT_FIREBASE);
   const [notice, setNotice] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [googleAccount, setGoogleAccount] = useState<FbUser | null>(null);
@@ -91,7 +91,9 @@ export function GoProvider({ children }: { children: ReactNode }) {
   configRef.current = config;
 
   useEffect(() => {
-    const cfg = readJSON<FirebaseConfig>(CFG_KEY);
+    const saved = readJSON<FirebaseConfig>(CFG_KEY);
+    const cfg = saved?.projectId === FIREBASE_PROJECT ? saved : DEFAULT_FIREBASE;
+    if (!saved) localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
     const ses = readJSON<Session>(SESSION_KEY);
     const demo = loadDemo();
     setConfig(cfg);

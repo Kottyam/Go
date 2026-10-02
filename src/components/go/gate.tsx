@@ -125,14 +125,12 @@ export function Gate() {
       <section className="mt-4 sheet p-4">
         <h2 className="font-semibold">അവസാനം · Firebase ബാക്കെൻഡ്</h2>
         <p className="mt-1 text-sm leading-6 text-muted">
-          ഡാറ്റ ഈ Firebase പ്രോജക്റ്റിൽ: {FIREBASE_PROJECT}. അക്കൗണ്ട് Google സൈൻ-ഇൻ.
+          ഡാറ്റ ഈ Firebase പ്രോജക്റ്റിൽ: {FIREBASE_PROJECT}. വെബ് കോൺഫിഗ് ഇതിനകം ഉണ്ട്. അടുത്തത് Google സൈൻ-ഇൻ മാത്രം.
         </p>
         <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm leading-6 text-muted">
-          <li>പുതിയ പ്രോജക്റ്റ് വേണ്ട. go-1729-b9fc3 തുറക്കുക.</li>
-          <li>Authentication → Sign-in method → Google ഓൺ ചെയ്യുക.</li>
-          <li>Firestore Database ഉണ്ടാക്കുക. ലൊക്കേഷൻ asia-south1.</li>
-          <li>Rules-ൽ താഴെയുള്ളത് ഒട്ടിച്ച് Publish ചെയ്യുക.</li>
-          <li>Project settings → Web app → firebaseConfig ഇവിടെ ഒട്ടിക്കുക.</li>
+          <li>Authentication → Google ഓൺ ആണെന്ന് ഉറപ്പാക്കുക.</li>
+          <li>Firestore ഉണ്ടെങ്കിൽ Rules Publish ചെയ്തിട്ടുണ്ടോ എന്ന് നോക്കുക.</li>
+          <li>താഴെ ഉടമ · Google അമർത്തുക.</li>
         </ol>
         {go.config && (
           <p className="mt-3 text-sm text-paid">കണക്ട് ചെയ്ത പ്രോജക്റ്റ്: {go.config.projectId}</p>

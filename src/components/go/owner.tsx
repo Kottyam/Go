@@ -770,7 +770,7 @@ function SettingsView() {
           ബാക്കെൻഡ് Firebase {FIREBASE_PROJECT}. ലോഗിൻ Google.
           {go.session?.backend === "firebase"
             ? ` ഇപ്പോൾ: ${go.session.email || go.session.name}. പ്രോജക്റ്റ് ${go.config?.projectId ?? ""}.`
-            : " കോൺഫിഗ് ഒട്ടിച്ച് Google ഉടമ അമർത്തുക."}
+            : " വെബ് കോൺഫിഗ് ഉണ്ട്. Google ഉടമ അമർത്തുക."}
         </p>
         <textarea className="field mt-3" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder="firebaseConfig ഒട്ടിക്കുക" />
         <div className="mt-3 flex flex-wrap gap-2">
