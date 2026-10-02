@@ -164,6 +164,8 @@ const en = {
   deleteForever: "Delete forever",
   deleteWarn: "This shop, its people, and its items go away. This cannot be undone.",
   deleteYes: "Yes, delete",
+  signedIn: "Signed in",
+  advanced: "Advanced",
   pickOne: "Or tap one",
   pickWork: "Choose one. This email keeps only that.",
   workOrder: "Booked delivery",
@@ -409,6 +411,8 @@ const ml: Copy = {
   deleteForever: "എന്നേക്കുമായി ഡിലീറ്റ്",
   deleteWarn: "ഈ കടയും ആളുകളും സാധനങ്ങളും പോകും. തിരിച്ച് വരില്ല.",
   deleteYes: "ഉവ്വ്, ഡിലീറ്റ്",
+  signedIn: "കയറിയിരിക്കുന്നു",
+  advanced: "കൂടുതൽ",
   pickOne: "അല്ലെങ്കിൽ ഒന്ന് തൊടുക",
   pickWork: "ഒരെണ്ണം മാത്രം. ഈ ഇമെയിലിൽ അത് മാത്രം.",
   workOrder: "ബുക്ക് ചെയ്ത ഡെലിവറി",
@@ -651,6 +655,8 @@ const ta: Copy = {
   deleteForever: "நிரந்தரமாக நீக்கு",
   deleteWarn: "இந்தக் கடை, ஆட்கள், பொருள்கள் போகும். திரும்ப வராது.",
   deleteYes: "ஆம், நீக்கு",
+  signedIn: "உள்ளே இருக்கிறீர்கள்",
+  advanced: "மேலும்",
   pickOne: "அல்லது ஒன்றைத் தொடவும்",
   pickWork: "ஒன்றை மட்டும் தேர்ந்தெடுக்கவும்.",
   workOrder: "பதிவு டெலிவரி",
@@ -893,6 +899,8 @@ const kn: Copy = {
   deleteForever: "ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಿ",
   deleteWarn: "ಈ ಅಂಗಡಿ, ಜನ, ಸಾಮಾನು ಹೋಗುತ್ತದೆ. ಹಿಂದಕ್ಕೆ ಬರುವುದಿಲ್ಲ.",
   deleteYes: "ಹೌದು, ಅಳಿಸಿ",
+  signedIn: "ಒಳಗೆ ಇದ್ದೀರಿ",
+  advanced: "ಇನ್ನಷ್ಟು",
   pickOne: "ಅಥವಾ ಒಂದನ್ನು ಒತ್ತಿ",
   pickWork: "ಒಂದನ್ನು ಮಾತ್ರ ಆಯ್ಕೆಮಾಡಿ.",
   workOrder: "ಬುಕ್ ಡೆಲಿವರಿ",
@@ -1135,6 +1143,8 @@ const te: Copy = {
   deleteForever: "శాశ్వతంగా తొలగించు",
   deleteWarn: "ఈ షాపు, వ్యక్తులు, సరుకు పోతాయి. వెనక్కి రాదు.",
   deleteYes: "అవును, తొలగించు",
+  signedIn: "లోపల ఉన్నారు",
+  advanced: "మరిన్ని",
   pickOne: "లేదా ఒకదాన్ని నొక్కండి",
   pickWork: "ఒక్కటే ఎంచుకోండి.",
   workOrder: "బుక్ డెలివరీ",
@@ -1377,6 +1387,8 @@ const hi: Copy = {
   deleteForever: "हमेशा के लिए मिटाएँ",
   deleteWarn: "यह दुकान, लोग और सामान हट जाएँगे। वापस नहीं आएगा।",
   deleteYes: "हाँ, मिटाएँ",
+  signedIn: "अंदर हैं",
+  advanced: "और",
   pickOne: "या एक चुनें",
   pickWork: "एक ही चुनें.",
   workOrder: "बुक डिलीवरी",
@@ -1599,20 +1611,35 @@ export function useI18n() {
   return ctx;
 }
 
-export function LangSelect() {
+export function LangSelect({ compact = false }: { compact?: boolean }) {
   const { lang, setLang, t } = useI18n();
+  if (compact) {
+    return (
+      <button
+        type="button"
+        aria-label={t.language}
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line text-xs font-semibold uppercase"
+        onClick={() => {
+          const i = LANGS.findIndex((item) => item.id === lang);
+          setLang(LANGS[(i + 1) % LANGS.length].id);
+        }}
+      >
+        {lang}
+      </button>
+    );
+  }
   return (
-    <select
-      aria-label={t.language}
-      className="field w-auto max-w-28 min-w-0 shrink min-h-11 bg-card px-2 text-sm"
-      value={lang}
-      onChange={(e) => setLang(e.target.value as Lang)}
-    >
+    <div className="grid grid-cols-2 gap-2">
       {LANGS.map((item) => (
-        <option key={item.id} value={item.id}>
+        <button
+          key={item.id}
+          type="button"
+          className={`min-h-11 rounded-full border px-3 text-sm ${lang === item.id ? "border-stamp bg-stamp text-stamp-ink" : "border-line bg-paper"}`}
+          onClick={() => setLang(item.id)}
+        >
           {item.name}
-        </option>
+        </button>
       ))}
-    </select>
+    </div>
   );
 }

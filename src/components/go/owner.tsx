@@ -131,7 +131,7 @@ export function OwnerApp() {
             <p className="truncate font-semibold">{shop?.shop.name ?? t.noShop}</p>
             <p className="truncate text-xs text-muted">{shop ? serviceText(lang, shop.shop) : t.pickService}</p>
           </div>
-          <LangSelect />
+          <LangSelect compact />
           {go.blobs.length > 1 && (
             <select
               className="field max-w-28 min-w-0"
@@ -1306,46 +1306,13 @@ function SettingsView() {
     <div className="grid gap-4">
       <h2 className="font-semibold">{t.settings}</h2>
       <section className="sheet p-4">
-        <h3 className="font-medium">{t.backendLine}</h3>
-        <p className="mt-1 text-sm leading-6 text-muted">
-          {t.backendLine} {FIREBASE_PROJECT}. {t.googleLine}{" "}
-          {go.session?.backend === "firebase"
-            ? `${t.now} ${go.session.email || go.session.name}. ${t.project} ${go.config?.projectId ?? ""}.`
-            : t.readyGoogle}
-        </p>
-        <textarea className="field mt-3" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={t.pasteConfig} />
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Btn
-            tone="ink"
-            onClick={() => {
-              const cfg = parseFirebaseConfig(paste);
-              if (cfg) go.saveConfig(cfg);
-            }}
-          >
-            {t.save}
-          </Btn>
-          <Btn tone="ghost" onClick={() => void navigator.clipboard.writeText(FIRESTORE_RULES)}>
-            {t.copyRulesShort}
-          </Btn>
-          {go.session?.backend === "demo" && (
-            <Btn tone="stamp" disabled={go.busy} onClick={() => void go.signInOwner()}>
-              {t.ownerGoogle}
-            </Btn>
-          )}
-        </div>
+        <p className="text-sm text-muted">{t.signedIn}</p>
+        <p className="mt-1 break-all font-medium">{go.session?.email || who}</p>
       </section>
-      {go.session?.backend === "demo" && (
-        <section className="sheet p-4">
-          <h3 className="font-medium">{t.demoTitle}</h3>
-          <p className="mt-1 text-sm text-muted">{t.demoBody}</p>
-          <Btn className="mt-3" tone="ghost" onClick={go.resetDemo}>
-            {t.refill}
-          </Btn>
-        </section>
-      )}
-      <p className="text-sm text-muted">
-        {t.now} {who}
-      </p>
+      <section className="sheet p-4">
+        <h3 className="mb-3 font-medium">{t.language}</h3>
+        <LangSelect />
+      </section>
       <Btn tone="ghost" onClick={() => void go.signOut()}>
         {t.out}
       </Btn>
@@ -1365,6 +1332,27 @@ function SettingsView() {
           )}
         </section>
       )}
+      <details className="sheet p-4">
+        <summary className="cursor-pointer text-sm text-muted">{t.advanced}</summary>
+        <p className="mt-3 text-sm leading-6 text-muted">
+          {t.backendLine} {FIREBASE_PROJECT}. {go.session?.email || ""}
+        </p>
+        <textarea className="field mt-3" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={t.pasteConfig} />
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Btn
+            tone="ink"
+            onClick={() => {
+              const cfg = parseFirebaseConfig(paste);
+              if (cfg) go.saveConfig(cfg);
+            }}
+          >
+            {t.save}
+          </Btn>
+          <Btn tone="ghost" onClick={() => void navigator.clipboard.writeText(FIRESTORE_RULES)}>
+            {t.copyRulesShort}
+          </Btn>
+        </div>
+      </details>
     </div>
   );
 }
