@@ -13,21 +13,41 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.webkit.WebViewAssetLoader;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
 
 import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String WEB_CLIENT_ID = "535180088089-udvql02691dqs1uuoco6v6cqip7jcg7p.apps.googleusercontent.com";
     private WebView webView;
     private String pendingToken = "";
     private String pendingAccess = "";
     private boolean pageReady = false;
+    private final ActivityResultLauncher<Intent> googleSignIn = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                try {
+                    String token = GoogleSignIn.getSignedInAccountFromIntent(result.getData())
+                            .getResult(ApiException.class)
+                            .getIdToken();
+                    pendingToken = token == null ? "" : token;
+                    deliverToken();
+                } catch (Exception ignored) {
+                    if (webView != null) {
+                        webView.evaluateJavascript("window.__goGoogleCancel&&window.__goGoogleCancel()", null);
+                    }
+                }
+            });
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -148,8 +168,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openGoogle() {
-        CustomTabsIntent tabs = new CustomTabsIntent.Builder().setShowTitle(true).build();
-        tabs.launchUrl(this, Uri.parse("https://goservice.online/?app=1"));
+        GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(WEB_CLIENT_ID)
+                .requestEmail()
+                .build();
+        GoogleSignIn.getClient(this, options).signOut().addOnCompleteListener(task ->
+                googleSignIn.launch(GoogleSignIn.getClient(this, options).getSignInIntent()));
     }
 
     private class Bridge {

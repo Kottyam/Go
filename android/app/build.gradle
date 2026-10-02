@@ -31,6 +31,11 @@ android {
                 storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
                 keyAlias System.getenv("ANDROID_KEY_ALIAS")
                 keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            } else {
+                storeFile file("go-upload.jks")
+                storePassword "go1729upload"
+                keyAlias "upload"
+                keyPassword "go1729upload"
             }
         }
     }
@@ -38,7 +43,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig keystorePath ? signingConfigs.release : signingConfigs.debug
+            signingConfig signingConfigs.release
         }
     }
 
@@ -52,5 +57,5 @@ dependencies {
     implementation "androidx.appcompat:appcompat:1.7.0"
     implementation "androidx.webkit:webkit:1.12.1"
     implementation "androidx.activity:activity:1.9.3"
-    implementation "androidx.browser:browser:1.8.0"
+    implementation "com.google.android.gms:play-services-auth:21.3.0"
 }

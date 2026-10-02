@@ -3,7 +3,7 @@ import { CustomerApp } from "./customer";
 import { Gate } from "./gate";
 import { OwnerApp } from "./owner";
 import { SuperApp } from "./super";
-import { LangSelect, noticeText, useI18n } from "@/lib/go/i18n";
+import { noticeText, useI18n } from "@/lib/go/i18n";
 import { useGo } from "@/lib/go/store";
 
 function Splash() {
@@ -37,11 +37,6 @@ export function Shell() {
               {t.ok}
             </button>
           </div>
-        </div>
-      )}
-      {!go.session && (
-        <div className="no-print flex w-full min-w-0 justify-end overflow-x-hidden border-b border-line bg-paper px-4 py-2">
-          <LangSelect />
         </div>
       )}
       {!go.session && (

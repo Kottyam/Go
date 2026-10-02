@@ -1631,35 +1631,18 @@ export function useI18n() {
 
 export function LangSelect() {
   const { lang, setLang, t } = useI18n();
-  const [open, setOpen] = useState(false);
-  const current = LANGS.find((item) => item.id === lang);
   return (
-    <div className="relative max-w-full">
-      <button
-        type="button"
-        aria-label={t.language}
-        className="h-10 max-w-full truncate rounded-full border border-line bg-card px-3 text-sm font-semibold"
-        onClick={() => setOpen((value) => !value)}
-      >
-        {current?.name ?? "English"}
-      </button>
-      {open && (
-        <div className="absolute right-0 z-30 mt-2 w-40 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-card p-1 shadow-md">
-          {LANGS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`block min-h-11 w-full rounded-lg px-3 text-left text-sm ${item.id === lang ? "bg-paid-bg font-semibold" : ""}`}
-              onClick={() => {
-                setLang(item.id);
-                setOpen(false);
-              }}
-            >
-              {item.name}
-            </button>
-          ))}
-        </div>
-      )}
+    <div className="flex max-w-full flex-wrap gap-2" aria-label={t.language}>
+      {LANGS.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          className={`h-10 rounded-full border px-3 text-sm ${item.id === lang ? "border-stamp bg-stamp font-semibold text-white" : "border-line bg-card"}`}
+          onClick={() => setLang(item.id)}
+        >
+          {item.name}
+        </button>
+      ))}
     </div>
   );
 }
