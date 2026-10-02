@@ -158,7 +158,6 @@ export function GoProvider({ children }: { children: ReactNode }) {
         if (user && role !== "customer") {
           sessionStorage.removeItem("go-auth-role");
           enterOwner(user);
-          setNotice(`@google|${user.email || user.name}`);
         } else if (role === "customer") {
           sessionStorage.setItem("go-customer-return", "1");
           sessionStorage.removeItem("go-auth-role");
@@ -406,7 +405,6 @@ export function GoProvider({ children }: { children: ReactNode }) {
           setBlobs([]);
           setActiveShopId(null);
           setSession(next);
-          setNotice(`@google|${user.email || user.name}`);
         } catch (e) {
           setNotice(explainFirebase(e));
           throw e;
