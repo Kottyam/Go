@@ -765,10 +765,12 @@ function SettingsView() {
     <div className="grid gap-4">
       <h2 className="font-semibold">ക്രമീകരണം</h2>
       <section className="sheet p-4">
-        <h3 className="font-medium">Firebase സൗജന്യ പ്ലാൻ</h3>
+        <h3 className="font-medium">ബാക്കെൻഡ് അക്കൗണ്ട്</h3>
         <p className="mt-1 text-sm leading-6 text-muted">
-          Spark പ്ലാനിൽ Authentication (Google) ഉം Firestore ഉം മതി. കോൺഫിഗ് ഈ ഫോണിൽ മാത്രം സൂക്ഷിക്കും.
-          {go.config ? ` ഇപ്പോൾ: ${go.config.projectId}.` : ""}
+          ബാക്കെൻഡ് Firebase Spark. ലോഗിൻ Google.
+          {go.session?.backend === "firebase"
+            ? ` ഇപ്പോൾ: ${go.session.email || go.session.name}. പ്രോജക്റ്റ് ${go.config?.projectId ?? ""}.`
+            : " കോൺഫിഗ് ഒട്ടിച്ച് Google ഉടമ അമർത്തുക."}
         </p>
         <textarea className="field mt-3" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder="firebaseConfig ഒട്ടിക്കുക" />
         <div className="mt-3 flex flex-wrap gap-2">

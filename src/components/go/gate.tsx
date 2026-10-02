@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FIRESTORE_RULES, parseFirebaseConfig, type FbUser } from "@/lib/go/config";
 import { kindLabel } from "@/lib/go/logic";
 import { useGo } from "@/lib/go/store";
@@ -14,6 +14,14 @@ export function Gate() {
   const [shopId, setShopId] = useState("");
   const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone: string; route: string; linkedUid?: string }>>([]);
   const [phase, setPhase] = useState<"home" | "join">("home");
+
+  useEffect(() => {
+    if (go.session?.kind === "owner" || !go.googleAccount) return;
+    if (sessionStorage.getItem("go-customer-return") !== "1") return;
+    sessionStorage.removeItem("go-customer-return");
+    setUser(go.googleAccount);
+    setPhase("join");
+  }, [go.googleAccount, go.session]);
 
   async function googleOwner() {
     if (paste.trim()) {
@@ -115,7 +123,10 @@ export function Gate() {
       </section>
 
       <section className="mt-4 sheet p-4">
-        <h2 className="font-semibold">Google + Firebase സൗജന്യം</h2>
+        <h2 className="font-semibold">അവസാനം · Firebase ബാക്കെൻഡ്</h2>
+        <p className="mt-1 text-sm leading-6 text-muted">
+          ഡാറ്റ Firebase സൗജന്യ പ്ലാനിൽ. അക്കൗണ്ട് Google സൈൻ-ഇൻ. ഉടമയും കസ്റ്റമറും അവരുടെ Google അക്കൗണ്ട് കൊണ്ട് കയറും.
+        </p>
         <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm leading-6 text-muted">
           <li>console.firebase.google.com → പുതിയ പ്രോജക്റ്റ്. പ്ലാൻ Spark (free) മതി.</li>
           <li>Authentication → Sign-in method → Google ഓൺ ചെയ്യുക.</li>

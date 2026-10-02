@@ -57,6 +57,7 @@ type GoApi = {
   setStatus: (shopId: string, orderId: string, status: OrderStatus) => Promise<void>;
   collect: (shopId: string, payment: Payment) => Promise<void>;
   google: () => Promise<FbUser>;
+  googleAccount: FbUser | null;
 };
 
 const GoContext = createContext<GoApi | null>(null);
@@ -79,6 +80,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<FirebaseConfig | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [googleAccount, setGoogleAccount] = useState<FbUser | null>(null);
   const [busy, setBusy] = useState(false);
   const pending = useRef(0);
   const blobsRef = useRef(blobs);
@@ -103,6 +105,33 @@ export function GoProvider({ children }: { children: ReactNode }) {
     }
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!ready || !config) return;
+    const role = sessionStorage.getItem("go-auth-role");
+    if (!role) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const user = await (await loadFirebase()).takeRedirectUser(config);
+        if (cancelled || !user) return;
+        sessionStorage.removeItem("go-auth-role");
+        setGoogleAccount(user);
+        if (role === "owner") {
+          setBlobs([]);
+          setSession({ kind: "owner", backend: "firebase", name: user.name, uid: user.uid, email: user.email });
+          setNotice(`Google അക്കൗണ്ട്: ${user.email || user.name}`);
+        } else {
+          sessionStorage.setItem("go-customer-return", "1");
+        }
+      } catch (e) {
+        if (!cancelled) setNotice(explainFirebase(e));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, config]);
 
   useEffect(() => {
     if (!ready) return;
@@ -234,9 +263,11 @@ export function GoProvider({ children }: { children: ReactNode }) {
         }
         setBusy(true);
         try {
-          const user = await (await loadFirebase()).signInGoogle(cfg);
+          const user = await (await loadFirebase()).signInGoogle(cfg, "owner");
+          setGoogleAccount(user);
           setBlobs([]);
           setSession({ kind: "owner", backend: "firebase", name: user.name, uid: user.uid, email: user.email });
+          setNotice(`Google അക്കൗണ്ട്: ${user.email || user.name}`);
         } catch (e) {
           setNotice(explainFirebase(e));
         } finally {
@@ -251,7 +282,9 @@ export function GoProvider({ children }: { children: ReactNode }) {
           throw new Error(message);
         }
         try {
-          return await (await loadFirebase()).signInGoogle(cfg);
+          const user = await (await loadFirebase()).signInGoogle(cfg, "customer");
+          setGoogleAccount(user);
+          return user;
         } catch (e) {
           setNotice(explainFirebase(e));
           throw e;
@@ -325,6 +358,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
         }
         const demo = loadDemo();
         setSession(null);
+        setGoogleAccount(null);
         setBlobs(demo);
         setActiveShopId(demo[0]?.shop.id ?? null);
       },
@@ -374,10 +408,11 @@ export function GoProvider({ children }: { children: ReactNode }) {
         }
         return commit(shopId, (b) => recipePayment(b, payment));
       },
+      googleAccount,
     };
     // commit identity changes each render; methods close over latest via refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeShopId, blobs, busy, config, notice, ready, session]);
+  }, [activeShopId, blobs, busy, config, googleAccount, notice, ready, session]);
 
   return <GoContext.Provider value={api}>{children}</GoContext.Provider>;
 }

@@ -1,5 +1,5 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getAuth, getRedirectResult, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
 import {
   arrayUnion,
   doc,
@@ -42,14 +42,37 @@ function dbFor(config: FirebaseConfig): Firestore {
   return getFirestore(appFor(config));
 }
 
-export async function signInGoogle(config: FirebaseConfig): Promise<FbUser> {
-  const auth = getAuth(appFor(config));
-  const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+function toUser(user: { uid: string; displayName: string | null; email: string | null }): FbUser {
   return {
-    uid: cred.user.uid,
-    name: cred.user.displayName || cred.user.email || "Google user",
-    email: cred.user.email || "",
+    uid: user.uid,
+    name: user.displayName || user.email || "Google user",
+    email: user.email || "",
   };
+}
+
+export async function takeRedirectUser(config: FirebaseConfig): Promise<FbUser | null> {
+  const cred = await getRedirectResult(getAuth(appFor(config)));
+  return cred?.user ? toUser(cred.user) : null;
+}
+
+export async function signInGoogle(config: FirebaseConfig, role: "owner" | "customer" = "owner"): Promise<FbUser> {
+  sessionStorage.setItem("go-auth-role", role);
+  const auth = getAuth(appFor(config));
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  try {
+    const cred = await signInWithPopup(auth, provider);
+    sessionStorage.removeItem("go-auth-role");
+    return toUser(cred.user);
+  } catch (e) {
+    const code = typeof e === "object" && e && "code" in e ? String((e as { code: string }).code) : "";
+    if (code.includes("popup-blocked") || code.includes("operation-not-supported")) {
+      await signInWithRedirect(auth, provider);
+      return new Promise(() => {});
+    }
+    sessionStorage.removeItem("go-auth-role");
+    throw e;
+  }
 }
 
 export async function signOutFirebase(config: FirebaseConfig) {
