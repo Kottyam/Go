@@ -10,11 +10,11 @@ function Home() {
   return (
     <ClientOnly
       fallback={
-        <div className="grid min-h-screen place-items-center bg-paper text-ink">
-          <div className="text-center">
-            <p className="font-display text-5xl text-stamp">GO Service</p>
-            <p className="mt-3 text-xs tracking-wide text-muted">powered by Alien 1729</p>
-          </div>
+        <div className="relative grid min-h-dvh place-items-center overflow-x-hidden bg-paper px-6 text-ink">
+          <p className="brand-mark text-4xl leading-tight text-stamp">Go Service</p>
+          <p className="absolute inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] text-center text-[10px] tracking-wide text-muted">
+            powered by Alien 1729
+          </p>
         </div>
       }
     >

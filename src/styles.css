@@ -30,6 +30,8 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     min-height: 100%;
+    max-width: 100%;
+    overflow-x: clip;
   }
   h1,
   h2,
@@ -42,6 +44,11 @@
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
+  }
+  .brand-mark {
+    font-family: Outfit, "Segoe UI", sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.04em;
   }
   input,
   select,

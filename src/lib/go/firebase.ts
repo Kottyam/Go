@@ -1,5 +1,5 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, getRedirectResult, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
+import { getAuth, getRedirectResult, onAuthStateChanged, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signInAnonymously, signOut, updatePassword } from "firebase/auth";
 import {
   arrayUnion,
   doc,
@@ -51,9 +51,30 @@ function toUser(user: { uid: string; displayName: string | null; email: string |
   };
 }
 
-export async function takeRedirectUser(config: FirebaseConfig): Promise<FbUser | null> {
-  const cred = await getRedirectResult(getAuth(appFor(config)));
-  return cred?.user ? toUser(cred.user) : null;
+let redirectTask: Promise<FbUser | null> | null = null;
+
+export function takeRedirectUser(config: FirebaseConfig): Promise<FbUser | null> {
+  if (!redirectTask) {
+    redirectTask = getRedirectResult(getAuth(appFor(config)))
+      .then((cred) => (cred?.user ? toUser(cred.user) : null))
+      .catch((error) => {
+        redirectTask = null;
+        throw error;
+      });
+  }
+  return redirectTask;
+}
+
+export function watchGoogleUser(config: FirebaseConfig, onUser: (user: FbUser | null) => void) {
+  return onAuthStateChanged(getAuth(appFor(config)), (user) => {
+    if (!user) {
+      onUser(null);
+      return;
+    }
+    const google = user.providerData.some((p) => p.providerId === "google.com");
+    const pendingOwner = sessionStorage.getItem("go-auth-role") === "owner";
+    onUser(google || pendingOwner ? toUser(user) : null);
+  });
 }
 
 export async function signInGoogle(config: FirebaseConfig, role: "owner" | "customer" = "owner"): Promise<FbUser> {
@@ -61,6 +82,11 @@ export async function signInGoogle(config: FirebaseConfig, role: "owner" | "cust
   const auth = getAuth(appFor(config));
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
+  const inApp = typeof navigator !== "undefined" && navigator.userAgent.includes("GoServiceApp");
+  if (inApp) {
+    await signInWithRedirect(auth, provider);
+    return new Promise(() => {});
+  }
   try {
     const cred = await signInWithPopup(auth, provider);
     sessionStorage.removeItem("go-auth-role");
@@ -143,6 +169,34 @@ export async function shopById(config: FirebaseConfig, shopId: string): Promise<
   return snap.exists() ? (snap.data() as ShopBlob) : null;
 }
 
+export async function allocateMemberNo(config: FirebaseConfig, used: string[]) {
+  const db = dbFor(config);
+  const ref = doc(db, "goCounters", "members");
+  const taken = new Set(used.map((n) => n.trim()));
+  let issued = "100001";
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    let n = Math.max(100000, Number(snap.data()?.n || 100000));
+    do {
+      n += 1;
+    } while (taken.has(String(n)));
+    issued = String(n);
+    tx.set(ref, { n }, { merge: true });
+  });
+  return issued;
+}
+
+export async function changeMemberPassword(config: FirebaseConfig, password: string) {
+  const user = getAuth(appFor(config)).currentUser;
+  if (!user || user.isAnonymous) return;
+  await updatePassword(user, password);
+}
+
+export async function signInAnon(config: FirebaseConfig): Promise<FbUser> {
+  const cred = await signInAnonymously(getAuth(appFor(config)));
+  return toUser(cred.user);
+}
+
 export async function signOutFirebase(config: FirebaseConfig) {
   await signOut(getAuth(appFor(config)));
 }
@@ -193,30 +247,46 @@ export async function shopByCode(config: FirebaseConfig, code: string): Promise<
   return shopSnap.data() as ShopBlob;
 }
 
-export function subscribeOwner(config: FirebaseConfig, uid: string, cb: (blobs: ShopBlob[]) => void) {
+export function subscribeOwner(
+  config: FirebaseConfig,
+  uid: string,
+  cb: (blobs: ShopBlob[]) => void,
+  onError?: (error: unknown) => void,
+) {
   const db = dbFor(config);
   let shopUnsubs: Array<() => void> = [];
   const stopShops = () => {
     shopUnsubs.forEach((u) => u());
     shopUnsubs = [];
   };
-  const unsub = onSnapshot(doc(db, "goOwners", uid), (snap) => {
-    const ids = ((snap.data()?.shopIds as string[]) ?? []).filter(Boolean);
-    stopShops();
-    if (ids.length === 0) {
-      cb([]);
-      return;
-    }
-    const map = new Map<string, ShopBlob>();
-    for (const id of ids) {
-      const u = onSnapshot(doc(db, "goShops", id), (shopSnap) => {
-        if (shopSnap.exists()) map.set(id, shopSnap.data() as ShopBlob);
-        else map.delete(id);
-        cb(ids.map((i) => map.get(i)).filter((b): b is ShopBlob => Boolean(b)));
-      });
-      shopUnsubs.push(u);
-    }
-  });
+  const unsub = onSnapshot(
+    doc(db, "goOwners", uid),
+    (snap) => {
+      if (!snap.exists()) return;
+      const ids = ((snap.data()?.shopIds as string[]) ?? []).filter(Boolean);
+      stopShops();
+      if (ids.length === 0) {
+        if (!snap.metadata.fromCache) cb([]);
+        return;
+      }
+      const map = new Map<string, ShopBlob>();
+      for (const id of ids) {
+        const u = onSnapshot(
+          doc(db, "goShops", id),
+          (shopSnap) => {
+            if (shopSnap.exists()) map.set(id, shopSnap.data() as ShopBlob);
+            else map.delete(id);
+            const list = ids.map((i) => map.get(i)).filter((b): b is ShopBlob => Boolean(b));
+            if (list.length === 0) return;
+            cb(list);
+          },
+          (error) => onError?.(error),
+        );
+        shopUnsubs.push(u);
+      }
+    },
+    (error) => onError?.(error),
+  );
   return () => {
     unsub();
     stopShops();

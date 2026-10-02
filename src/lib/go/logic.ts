@@ -176,6 +176,19 @@ export function memberEmail(username: string) {
   return `${slug}@members.go1729.app`;
 }
 
+export function phoneDigits(phone: string) {
+  return phone.replace(/\D/g, "");
+}
+
+export function nextShopMemberNo(customers: { username?: string }[]) {
+  const nums = customers.map((c) => Number(c.username)).filter((n) => Number.isInteger(n) && n > 0);
+  return String((nums.length ? Math.max(...nums) : 0) + 1);
+}
+
+export function memberLoginId(shopCode: string, username: string) {
+  return `${shopCode.trim().toUpperCase()}-${username.trim()}`;
+}
+
 export function emptyBlob(shop: Shop, ownerUid: string): ShopBlob {
   return { shop, ownerUid, items: [], customers: [], orders: [], payments: [], rev: 1 };
 }

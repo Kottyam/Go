@@ -10,6 +10,9 @@ import {
   recipeUpsertItem,
   shopCode,
   passHash,
+  nextShopMemberNo,
+  phoneDigits,
+  memberLoginId,
 } from "./logic";
 import { seed } from "./seed";
 import type { Customer, FirebaseConfig, Item, Order, OrderStatus, Payment, Session, Shop, ShopBlob } from "./types";
@@ -44,7 +47,7 @@ type GoApi = {
   setActiveShop: (id: string) => void;
   enterDemoOwner: () => void;
   enterDemoCustomer: (customerId: string) => void;
-  loginMember: (username: string, password: string) => Promise<void>;
+  loginMember: (shopCode: string, username: string, password: string) => Promise<void>;
   saveConfig: (config: FirebaseConfig | null) => void;
   signInOwner: () => Promise<void>;
   lookupShop: (code: string) => Promise<ShopBlob | null>;
@@ -55,6 +58,8 @@ type GoApi = {
   addShop: (input: Omit<Shop, "id" | "code">) => Promise<void>;
   saveItem: (shopId: string, item: Item) => Promise<void>;
   saveCustomer: (shopId: string, customer: Customer, password?: string) => Promise<void>;
+  changePassword: (password: string) => Promise<void>;
+  resetMemberPassword: (shopId: string, customerId: string) => Promise<void>;
   placeOrder: (shopId: string, order: Order) => Promise<void>;
   setStatus: (shopId: string, orderId: string, status: OrderStatus) => Promise<void>;
   collect: (shopId: string, payment: Payment) => Promise<void>;
@@ -112,28 +117,47 @@ export function GoProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready || !config) return;
-    const role = sessionStorage.getItem("go-auth-role");
-    if (!role) return;
-    let cancelled = false;
+    let stop = () => {};
+    let gone = false;
+    const enterOwner = (user: FbUser) => {
+      const live = sessionRef.current;
+      if (live?.kind === "customer") return;
+      if (live?.backend === "firebase" && live.kind === "owner" && live.uid === user.uid) return;
+      const next: Session = { kind: "owner", backend: "firebase", name: user.name, uid: user.uid, email: user.email };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+      sessionRef.current = next;
+      setGoogleAccount(user);
+      setBlobs([]);
+      setActiveShopId(null);
+      setSession(next);
+    };
     void (async () => {
       try {
-        const user = await (await loadFirebase()).takeRedirectUser(config);
-        if (cancelled || !user) return;
-        sessionStorage.removeItem("go-auth-role");
-        setGoogleAccount(user);
-        if (role === "owner") {
-          setBlobs([]);
-          setSession({ kind: "owner", backend: "firebase", name: user.name, uid: user.uid, email: user.email });
+        const fb = await loadFirebase();
+        if (gone) return;
+        stop = fb.watchGoogleUser(config, (next) => {
+          if (!next) return;
+          if (sessionStorage.getItem("go-auth-role") === "customer") return;
+          enterOwner(next);
+        });
+        const user = await fb.takeRedirectUser(config);
+        if (gone) return;
+        const role = sessionStorage.getItem("go-auth-role");
+        if (user && role !== "customer") {
+          sessionStorage.removeItem("go-auth-role");
+          enterOwner(user);
           setNotice(`@google|${user.email || user.name}`);
-        } else {
+        } else if (role === "customer") {
           sessionStorage.setItem("go-customer-return", "1");
+          sessionStorage.removeItem("go-auth-role");
         }
       } catch (e) {
-        if (!cancelled) setNotice(explainFirebase(e));
+        if (!gone) setNotice(explainFirebase(e));
       }
     })();
     return () => {
-      cancelled = true;
+      gone = true;
+      stop();
     };
   }, [ready, config]);
 
@@ -159,11 +183,17 @@ export function GoProvider({ children }: { children: ReactNode }) {
     void (async () => {
       if (cancelled) return;
       if (session.kind === "owner") {
-        const unsub = (await loadFirebase()).subscribeOwner(config, uid, (next) => {
-          if (pending.current > 0) return;
-          setBlobs(next);
-          setActiveShopId((cur) => (cur && next.some((b) => b.shop.id === cur) ? cur : (next[0]?.shop.id ?? null)));
-        });
+        const unsub = (await loadFirebase()).subscribeOwner(
+          config,
+          uid,
+          (next) => {
+            if (pending.current > 0) return;
+            if (next.length === 0 && blobsRef.current.length > 0) return;
+            setBlobs(next);
+            setActiveShopId((cur) => (cur && next.some((b) => b.shop.id === cur) ? cur : (next[0]?.shop.id ?? null)));
+          },
+          (error) => setNotice(explainFirebase(error)),
+        );
         if (cancelled) unsub();
         else stop = unsub;
       } else if (shopId) {
@@ -252,32 +282,33 @@ export function GoProvider({ children }: { children: ReactNode }) {
           customerId: customer.id,
         });
       },
-      loginMember: async (username, password) => {
-        const name = username.trim().toLowerCase();
-        if (!name || !password) {
+      loginMember: async (shopCode, username, password) => {
+        const code = shopCode.trim().toUpperCase();
+        const name = username.trim();
+        if (!code || !name || !password) {
           setNotice("@badLogin");
           return;
         }
         const hash = await passHash(password);
-        const demo = blobsRef.current.length ? blobsRef.current : loadDemo();
-        const named = demo.flatMap((b) => b.customers.filter((c) => (c.username || "").toLowerCase() === name).map((c) => ({ blob: b, customer: c })));
-        const hit = named.find((row) => row.customer.passHash === hash);
-        if (hit) {
-          setBlobs(demo);
-          setActiveShopId(hit.blob.shop.id);
+        const enter = (blob: ShopBlob, customer: Customer, backend: "demo" | "firebase", uid: string, email: string) => {
+          if (backend === "demo") setBlobs(blobsRef.current.length ? blobsRef.current : loadDemo());
+          else setBlobs([blob]);
+          setActiveShopId(blob.shop.id);
           setSession({
             kind: "customer",
-            backend: "demo",
-            name: hit.customer.name,
-            uid: "demo-" + hit.customer.id,
-            email: "",
-            shopId: hit.blob.shop.id,
-            customerId: hit.customer.id,
+            backend,
+            name: customer.name,
+            uid,
+            email,
+            shopId: blob.shop.id,
+            customerId: customer.id,
           });
-          return;
-        }
-        if (named.length > 0) {
-          setNotice("@badLogin");
+        };
+        const demo = blobsRef.current.length ? blobsRef.current : loadDemo();
+        const local = demo.find((b) => b.shop.code.toUpperCase() === code);
+        const localCustomer = local?.customers.find((c) => c.username === name && c.passHash === hash);
+        if (local && localCustomer && sessionRef.current?.backend !== "firebase") {
+          enter(local, localCustomer, "demo", "demo-" + localCustomer.id, "");
           return;
         }
         const cfg = configRef.current;
@@ -288,29 +319,20 @@ export function GoProvider({ children }: { children: ReactNode }) {
         setBusy(true);
         try {
           const fb = await loadFirebase();
-          const user = await fb.signInMember(cfg, name, password);
-          const link = await fb.readMember(cfg, user.uid);
-          if (!link) {
+          const blob = await fb.shopByCode(cfg, code);
+          const customer = blob?.customers.find((c) => c.username === name);
+          if (!blob || !customer || customer.passHash !== hash) {
             setNotice("@badLogin");
             return;
           }
-          const blob = await fb.shopById(cfg, link.shopId);
-          const customer = blob?.customers.find((c) => c.id === link.customerId);
-          if (!blob || !customer) {
-            setNotice("@customerMissing");
-            return;
+          const loginId = memberLoginId(blob.shop.code, name);
+          try {
+            const user = await fb.signInMember(cfg, loginId, password);
+            enter(blob, customer, "firebase", user.uid, user.email);
+          } catch {
+            const user = await fb.signInAnon(cfg);
+            enter(blob, customer, "firebase", user.uid, user.email);
           }
-          setBlobs([blob]);
-          setActiveShopId(blob.shop.id);
-          setSession({
-            kind: "customer",
-            backend: "firebase",
-            name: customer.name,
-            uid: user.uid,
-            email: user.email,
-            shopId: blob.shop.id,
-            customerId: customer.id,
-          });
         } catch (e) {
           setNotice(explainFirebase(e));
         } finally {
@@ -332,17 +354,22 @@ export function GoProvider({ children }: { children: ReactNode }) {
         const cfg = configRef.current;
         if (!cfg) {
           setNotice("@needConfig");
-          return;
+          throw new Error("@needConfig");
         }
         setBusy(true);
         try {
           const user = await (await loadFirebase()).signInGoogle(cfg, "owner");
+          const next: Session = { kind: "owner", backend: "firebase", name: user.name, uid: user.uid, email: user.email };
+          localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+          sessionRef.current = next;
           setGoogleAccount(user);
           setBlobs([]);
-          setSession({ kind: "owner", backend: "firebase", name: user.name, uid: user.uid, email: user.email });
+          setActiveShopId(null);
+          setSession(next);
           setNotice(`@google|${user.email || user.name}`);
         } catch (e) {
           setNotice(explainFirebase(e));
+          throw e;
         } finally {
           setBusy(false);
         }
@@ -454,6 +481,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
         setBlobs((curr) => [...curr, blob]);
         setActiveShopId(shop.id);
         if (live.backend !== "firebase" || !configRef.current) return;
+        pending.current += 1;
         setBusy(true);
         try {
           await (await loadFirebase()).createShop(configRef.current, live.uid, blob, live.name, live.email);
@@ -461,29 +489,56 @@ export function GoProvider({ children }: { children: ReactNode }) {
           setBlobs((curr) => curr.filter((b) => b.shop.id !== shop.id));
           setNotice(explainFirebase(e));
         } finally {
+          pending.current = Math.max(0, pending.current - 1);
           setBusy(false);
         }
       },
       saveItem: (shopId, item) => commit(shopId, (b) => recipeUpsertItem(b, item)),
       saveCustomer: async (shopId, customer, password) => {
-        let next = { ...customer, username: customer.username?.trim().toLowerCase() || undefined };
+        const shop = blobsRef.current.find((b) => b.shop.id === shopId);
+        if (!shop) {
+          setNotice("@shopMissing");
+          return;
+        }
+        let next = { ...customer, username: customer.username?.trim() || undefined };
+        if (!next.username) {
+          const pass = phoneDigits(next.phone);
+          if (pass.length < 6) {
+            setNotice("@passShort");
+            return;
+          }
+          next.username = nextShopMemberNo(shop.customers);
+          password = pass;
+          next.mustChangePass = true;
+        }
         if (password) {
           if (password.length < 6) {
             setNotice("@passShort");
             return;
           }
           next.passHash = await passHash(password);
-          const live = sessionRef.current;
-          const cfg = configRef.current;
-          if (live?.backend === "firebase" && cfg && next.username) {
-            try {
-              next.memberUid = await (await loadFirebase()).provisionMember(cfg, next.username, password, shopId, next.id);
-            } catch (e) {
-              setNotice(explainFirebase(e));
-            }
-          }
         }
         await commit(shopId, (b) => recipeUpsertCustomer(b, next));
+        const live = sessionRef.current;
+        const cfg = configRef.current;
+        if (password && live?.backend === "firebase" && cfg && next.username) {
+          try {
+            const uid = await (await loadFirebase()).provisionMember(
+              cfg,
+              memberLoginId(shop.shop.code, next.username),
+              password,
+              shopId,
+              next.id,
+            );
+            await commit(shopId, (b) => {
+              const current = b.customers.find((c) => c.id === next.id);
+              if (!current) return b;
+              return recipeUpsertCustomer(b, { ...current, memberUid: uid });
+            });
+          } catch (e) {
+            setNotice(explainFirebase(e));
+          }
+        }
       },
       placeOrder: async (shopId, order) => {
         if (order.lines.length === 0) {
@@ -499,6 +554,63 @@ export function GoProvider({ children }: { children: ReactNode }) {
           return Promise.resolve();
         }
         return commit(shopId, (b) => recipePayment(b, payment));
+      },
+      changePassword: async (password) => {
+        const live = sessionRef.current;
+        if (!live || live.kind !== "customer") return;
+        if (password.trim().length < 6) {
+          setNotice("@passShort");
+          return;
+        }
+        const cfg = configRef.current;
+        if (live.backend === "firebase" && cfg) {
+          try {
+            await (await loadFirebase()).changeMemberPassword(cfg, password.trim());
+          } catch (e) {
+            setNotice(explainFirebase(e));
+            return;
+          }
+        }
+        const hash = await passHash(password.trim());
+        await commit(live.shopId, (b) => {
+          const customer = b.customers.find((c) => c.id === live.customerId);
+          if (!customer) throw new Error("@customerMissing");
+          return recipeUpsertCustomer(b, { ...customer, passHash: hash, mustChangePass: false });
+        });
+        setNotice("@passChanged");
+      },
+      resetMemberPassword: async (shopId, customerId) => {
+        const shop = blobsRef.current.find((b) => b.shop.id === shopId);
+        const customer = shop?.customers.find((c) => c.id === customerId);
+        if (!shop || !customer || !customer.username) {
+          setNotice("@customerMissing");
+          return;
+        }
+        const pass = phoneDigits(customer.phone);
+        if (pass.length < 6) {
+          setNotice("@passShort");
+          return;
+        }
+        const hash = await passHash(pass);
+        await commit(shopId, (b) => {
+          const current = b.customers.find((c) => c.id === customerId);
+          if (!current) throw new Error("@customerMissing");
+          return recipeUpsertCustomer(b, { ...current, passHash: hash, mustChangePass: true });
+        });
+        const live = sessionRef.current;
+        const cfg = configRef.current;
+        if (live?.backend === "firebase" && cfg) {
+          try {
+            await (await loadFirebase()).provisionMember(cfg, memberLoginId(shop.shop.code, customer.username), pass, shopId, customerId);
+          } catch (e) {
+            const code = typeof e === "object" && e && "code" in e ? String((e as { code: string }).code) : "";
+            if (!code.includes("wrong-password") && !code.includes("invalid-credential")) {
+              setNotice(explainFirebase(e));
+              return;
+            }
+          }
+        }
+        setNotice("@passChanged");
       },
       googleAccount,
     };

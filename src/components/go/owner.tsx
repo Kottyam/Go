@@ -13,7 +13,7 @@ import {
   Truck,
   Users,
 } from "lucide-react";
-import { monthText, serviceText, useI18n, type Copy } from "@/lib/go/i18n";
+import { monthText, serviceText, LangSelect, useI18n, type Copy } from "@/lib/go/i18n";
 import {
   balance,
   billFor,
@@ -68,8 +68,7 @@ export function OwnerApp() {
       <main className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-center px-6 py-8">
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>
-            <p className="font-display text-5xl leading-none text-stamp">{t.brand}</p>
-            <p className="mt-2 text-xs tracking-wide text-muted">{t.poweredBy}</p>
+            <p className="brand-mark text-3xl leading-tight text-stamp">{t.brand}</p>
           </div>
           <button
             type="button"
@@ -90,9 +89,9 @@ export function OwnerApp() {
   }
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-5xl md:grid md:grid-cols-[13rem_1fr]">
+    <div className="mx-auto min-h-screen w-full min-w-0 max-w-5xl overflow-x-hidden md:grid md:grid-cols-[13rem_1fr]">
       <aside className="no-print hidden border-r border-line p-4 md:block">
-        <p className="font-display text-3xl leading-none text-stamp">{t.brand}</p>
+        <p className="brand-mark text-3xl leading-none text-stamp">{t.brand}</p>
         <p className="mb-4 text-xs text-muted">{t.owner}</p>
         <nav className="grid gap-1">
           {DOCK.filter((d) => d.id !== "more").map((d) => (
@@ -106,15 +105,12 @@ export function OwnerApp() {
         </nav>
       </aside>
       <div className="min-w-0">
-        <header className="no-print sticky top-14 z-10 flex items-center gap-3 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur">
+        <header className="no-print sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-paper px-4 py-3">
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">{shop?.shop.name ?? t.noShop}</p>
-            <p className="truncate text-xs text-muted">
-              {shop ? `${serviceText(lang, shop.shop)} · ${shop.shop.code}` : t.pickService}
-              {go.session?.backend === "demo" ? ` · ${t.demo}` : ""}
-              {go.busy ? ` · ${t.saving}` : ""}
-            </p>
+            <p className="truncate text-xs text-muted">{shop ? serviceText(lang, shop.shop) : t.pickService}</p>
           </div>
+          <LangSelect />
           {go.blobs.length > 1 && (
             <select
               className="field max-w-40"
@@ -168,7 +164,7 @@ export function OwnerApp() {
                 <li key={d.id}>
                   <button
                     type="button"
-                    className={`flex min-h-14 w-full flex-col items-center justify-center gap-0.5 text-xs ${on ? "text-stamp" : "text-muted"}`}
+                    className={`flex min-h-16 w-full min-w-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-1 text-center text-[10px] leading-tight break-words whitespace-normal ${on ? "text-stamp" : "text-muted"}`}
                     onClick={() => setView(d.id === "more" ? "more" : d.id)}
                   >
                     <Icon size={18} />
@@ -211,12 +207,11 @@ function HomeView({ onOrder, onBills, onRoutes }: { onOrder: () => void; onBills
   return (
     <div className="grid gap-4">
       <section className="sheet p-4">
-        <p className="text-sm text-muted">{t.yourCode}</p>
-        <p className="font-display text-4xl tracking-wide text-stamp">{shop.shop.code}</p>
-        <p className="mt-1 text-sm text-muted">
-          {shop.shop.name} · {serviceText(lang, shop.shop)}
-        </p>
-        <p className="mt-2 text-xs leading-5 text-muted">{t.codeHelp}</p>
+        <p className="text-2xl font-semibold leading-tight">{shop.shop.name}</p>
+        <p className="mt-1 text-sm text-stamp">{serviceText(lang, shop.shop)}</p>
+        <p className="mt-4 text-sm text-muted">{t.yourCode}</p>
+        <p className="font-display text-3xl tracking-wide text-stamp">{shop.shop.code}</p>
+        <p className="mt-2 text-sm leading-6 text-muted">{t.codeHelp}</p>
       </section>
       <div className="grid grid-cols-2 gap-3">
         <button type="button" onClick={onBills} className="sheet p-4 text-left">
@@ -625,8 +620,7 @@ function PeopleView() {
           const over = c.creditLimit > 0 && due > c.creditLimit;
           return (
             <li key={c.id}>
-              <button
-                type="button"
+              <div
                 className="sheet flex w-full items-center justify-between gap-3 p-3 text-left"
                 onClick={() => {
                   setEdit(c);
@@ -637,12 +631,27 @@ function PeopleView() {
                   <span className="block font-medium">{c.name}</span>
                   <span className="text-sm text-muted">
                     {c.phone} · {c.route || t.noRoute}
-                    {c.username ? ` · ${c.username}` : ""}
+                    {c.username ? ` · ${t.memberNo} ${c.username}` : ""}
                   </span>
+                  {c.mustChangePass && <span className="block text-sm text-muted">{t.passSame}</span>}
                   {over && <span className="block text-sm text-due">{t.overLimit}</span>}
                 </span>
-                <Money n={due} tone={due > 0 ? "due" : "paid"} />
-              </button>
+                <span className="flex shrink-0 flex-col items-end gap-2">
+                  <Money n={due} tone={due > 0 ? "due" : "paid"} />
+                  {c.username && (
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-stamp"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void go.resetMemberPassword(shop.shop.id, c.id);
+                      }}
+                    >
+                      {t.resetPass}
+                    </button>
+                  )}
+                </span>
+              </div>
             </li>
           );
         })}
@@ -666,8 +675,6 @@ function PersonForm({
   const [route, setRoute] = useState(initial.route);
   const [limit, setLimit] = useState(String(initial.creditLimit || ""));
   const [note, setNote] = useState(initial.note);
-  const [username, setUsername] = useState(initial.username ?? "");
-  const [password, setPassword] = useState("");
   return (
     <form
       className="sheet grid gap-3 p-4"
@@ -683,9 +690,8 @@ function PersonForm({
             route: route.trim(),
             creditLimit: Number(limit || 0),
             note: note.trim(),
-            username: username.trim().toLowerCase() || undefined,
+            username: initial.username,
           },
-          password,
         );
       }}
     >
@@ -704,18 +710,14 @@ function PersonForm({
       <Field label={t.note}>
         <TextInput value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-      <Field label={t.memberUser}>
-        <TextInput value={username} autoComplete="off" onChange={(e) => setUsername(e.target.value)} placeholder="rahim" />
-      </Field>
-      <Field label={t.memberPass}>
-        <TextInput
-          type="password"
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder={initial.passHash ? t.passKeep : t.memberHint}
-        />
-      </Field>
+      {initial.username ? (
+        <p className="text-sm leading-6 text-muted">
+          {t.memberNo}: {initial.username}
+          {initial.mustChangePass ? `. ${t.passSame}` : ""}
+        </p>
+      ) : (
+        <p className="text-sm leading-6 text-muted">{t.memberAuto}</p>
+      )}
       <div className="flex gap-2">
         <Btn type="submit" tone="stamp">
           {t.save}

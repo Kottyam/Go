@@ -32,18 +32,18 @@ export function Btn({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { tone?: "ink" | "stamp" | "ghost" | "paid" | "gold" }) {
   const toneClass =
     tone === "stamp"
-      ? "bg-stamp px-4 text-sm text-stamp-ink"
+      ? "bg-stamp text-stamp-ink"
       : tone === "gold"
-        ? "bg-gold px-3 text-xs text-gold-ink"
+        ? "bg-gold text-xs text-gold-ink"
         : tone === "ghost"
-          ? "border border-line bg-card px-4 text-sm text-ink"
+          ? "border border-line bg-card text-ink"
           : tone === "paid"
-            ? "bg-paid px-4 text-sm text-stamp-ink"
-            : "bg-ink px-4 text-sm text-paper";
+            ? "bg-paid text-stamp-ink"
+            : "bg-ink text-paper";
   return (
     <button
       {...props}
-      className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full font-semibold disabled:opacity-50 ${toneClass} ${props.className ?? ""}`}
+      className={`inline-flex min-h-11 max-w-full items-center justify-center gap-1.5 whitespace-normal rounded-full px-3 text-center text-sm font-semibold leading-tight disabled:opacity-50 ${toneClass} ${props.className ?? ""}`}
     />
   );
 }

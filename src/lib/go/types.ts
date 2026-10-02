@@ -44,6 +44,7 @@ export type Customer = {
   username?: string;
   passHash?: string;
   memberUid?: string;
+  mustChangePass?: boolean;
 };
 
 export type OrderLine = {

@@ -39,9 +39,12 @@ export function explainFirebase(e: unknown) {
   if (code.includes("email-already-in-use")) return "@userTaken";
   if (code.includes("popup-blocked") || code.includes("operation-not-supported")) return "@popupBlocked";
   if (code.includes("popup-closed")) return "@popupClosed";
-  if (code.includes("unauthorized-domain")) return "@unauthorized";
+  if (code.includes("unauthorized-domain")) {
+    const host = typeof location !== "undefined" ? location.hostname : "";
+    return `@unauthorized|${host}`;
+  }
   if (code.includes("permission-denied")) return "@denied";
-  if (e instanceof Error && e.message.startsWith("@")) return e.message;
+  if (e instanceof Error && e.message.includes("does not exist")) return "@noDb";
   if (e instanceof Error && e.message) return e.message;
   return "@firebase";
 }

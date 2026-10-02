@@ -4,7 +4,7 @@ import { monthText, useI18n } from "@/lib/go/i18n";
 import { billFor, inr, monthKey, orderTotal, qtyText, shiftMonth } from "@/lib/go/logic";
 import { useGo } from "@/lib/go/store";
 import { OrderPad } from "./order-pad";
-import { Btn, Money, shortDate } from "./ui";
+import { Btn, Field, Money, shortDate, TextInput } from "./ui";
 
 export function CustomerApp() {
   const go = useGo();
@@ -14,6 +14,8 @@ export function CustomerApp() {
   const customer = shop?.customers.find((c) => c.id === session?.customerId) ?? null;
   const [tab, setTab] = useState<"order" | "bill">("order");
   const [month, setMonth] = useState(monthKey());
+  const [passOpen, setPassOpen] = useState(Boolean(customer?.mustChangePass));
+  const [nextPass, setNextPass] = useState("");
   if (!session || !shop || !customer) {
     return (
       <main className="grid min-h-screen place-items-center p-6 text-center">
@@ -26,11 +28,38 @@ export function CustomerApp() {
       </main>
     );
   }
+  if (customer.mustChangePass) {
+    return (
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-8">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="brand-mark text-3xl text-stamp">{t.brand}</h1>
+          <button type="button" className="grid h-11 w-11 place-items-center rounded-full border border-line" onClick={() => void go.signOut()} aria-label={t.out}>
+            <LogOut size={18} />
+          </button>
+        </div>
+        <h2 className="font-semibold">{t.changePass}</h2>
+        <form
+          className="mt-4 grid gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void go.changePassword(nextPass);
+          }}
+        >
+          <Field label={t.newPass}>
+            <TextInput type="password" value={nextPass} onChange={(e) => setNextPass(e.target.value)} required />
+          </Field>
+          <Btn type="submit" tone="stamp" disabled={go.busy}>
+            {t.save}
+          </Btn>
+        </form>
+      </main>
+    );
+  }
   const bill = billFor(customer.id, month, shop.orders, shop.payments);
   const orders = shop.orders.filter((o) => o.customerId === customer.id && o.date.slice(0, 7) === month);
   return (
-    <div className="mx-auto min-h-screen w-full max-w-lg">
-      <header className="sticky top-14 z-10 flex items-center gap-3 border-b border-line bg-paper/95 px-4 py-3">
+    <div className="mx-auto min-h-screen w-full min-w-0 max-w-lg overflow-x-hidden">
+      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-paper px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{shop.shop.name}</p>
           <p className="truncate text-xs text-muted">
@@ -54,6 +83,28 @@ export function CustomerApp() {
             <Money n={bill.due} tone={bill.due > 0 ? "due" : "paid"} />
           </p>
           <p className="text-sm text-muted">{monthText(lang, month)}</p>
+        </div>
+        <div className="sheet mb-4 p-4">
+          <button type="button" className="font-semibold text-stamp" onClick={() => setPassOpen((v) => !v)}>
+            {t.changePass}
+          </button>
+          {passOpen && (
+            <form
+              className="mt-3 grid gap-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void go.changePassword(nextPass).then(() => setNextPass(""));
+              }}
+            >
+              {customer.mustChangePass && <p className="text-sm leading-6 text-muted">{t.passSame}</p>}
+              <Field label={t.newPass}>
+                <TextInput type="password" value={nextPass} onChange={(e) => setNextPass(e.target.value)} required />
+              </Field>
+              <Btn type="submit" tone="stamp" disabled={go.busy}>
+                {t.save}
+              </Btn>
+            </form>
+          )}
         </div>
         {tab === "order" ? (
           <OrderPad lockCustomerId={customer.id} />
