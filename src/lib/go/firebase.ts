@@ -40,7 +40,7 @@ function appFor(config: FirebaseConfig) {
 }
 
 function dbFor(config: FirebaseConfig): Firestore {
-  return getFirestore(appFor(config));
+  return getFirestore(appFor(config), "default");
 }
 
 function toUser(user: { uid: string; displayName: string | null; email: string | null }): FbUser {
@@ -119,7 +119,7 @@ export async function provisionMember(
     cred = await signInWithEmailAndPassword(auth, email, password);
   }
   const uid = cred.user.uid;
-  await setDoc(doc(getFirestore(app), "goMembers", uid), {
+  await setDoc(doc(getFirestore(app, "default"), "goMembers", uid), {
     shopId,
     customerId,
     username: username.trim().toLowerCase(),
