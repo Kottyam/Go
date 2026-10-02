@@ -30,11 +30,13 @@ import type { Customer, Item, OrderStatus, PayMethod, ShopKind, WorkMode } from 
 import { OrderPad } from "./order-pad";
 import { Btn, Field, Money, Select, TextInput, shortDate } from "./ui";
 
-type View = "home" | "orders" | "bills" | "routes" | "more" | "people" | "items" | "sales" | "shops" | "settings";
+type View = "home" | "orders" | "bills" | "routes" | "more" | "people" | "items" | "sales" | "shops" | "settings" | "passes" | "round";
 
 function dockLabel(t: Copy, id: View) {
   if (id === "home") return t.home;
-  if (id === "orders") return t.orders;
+  if (id === "orders") return t.workOrder;
+  if (id === "passes") return t.workFixed;
+  if (id === "round") return t.workDaily;
   if (id === "bills") return t.bills;
   if (id === "routes") return t.routes;
   if (id === "people") return t.customers;
@@ -53,7 +55,7 @@ export function OwnerApp() {
   const { lang, t } = useI18n();
   const shop = go.active;
   const work: WorkMode = shop?.shop.work ?? "order";
-  const door: View = work === "fixed" ? "bills" : "orders";
+  const door: View = work === "fixed" ? "passes" : work === "daily" ? "round" : "orders";
   const [view, setView] = useState<View>(door);
   const [compose, setCompose] = useState(false);
   useEffect(() => {
@@ -62,7 +64,14 @@ export function OwnerApp() {
   const dock = useMemo(() => {
     if (work === "fixed") {
       return [
-        { id: "bills" as View, icon: Receipt },
+        { id: "passes" as View, icon: Receipt },
+        { id: "people" as View, icon: Users },
+        { id: "more" as View, icon: Settings },
+      ];
+    }
+    if (work === "daily") {
+      return [
+        { id: "round" as View, icon: Truck },
         { id: "people" as View, icon: Users },
         { id: "more" as View, icon: Settings },
       ];
@@ -157,6 +166,8 @@ export function OwnerApp() {
             />
           )}
           {view === "orders" && <OrdersView compose={compose} setCompose={setCompose} />}
+          {view === "passes" && <PassView />}
+          {view === "round" && <RoundView />}
           {view === "bills" && <BillsView />}
           {view === "routes" && <RoutesView />}
           {view === "more" && <MoreView onPick={(id) => setView(id)} />}
@@ -297,6 +308,10 @@ function OrdersView({ compose, setCompose }: { compose: boolean; setCompose: (v:
   });
   return (
     <div className="grid gap-4">
+      <div>
+        <h2 className="text-xl font-semibold">{t.workOrder}</h2>
+        <p className="text-sm text-muted">{t.workOrderHint}</p>
+      </div>
       <div className="flex flex-wrap items-end gap-2">
         <Field label={t.date}>
           <TextInput type="date" value={day} onChange={(e) => setDay(e.target.value)} />
@@ -342,6 +357,114 @@ function OrdersView({ compose, setCompose }: { compose: boolean; setCompose: (v:
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function PassView() {
+  const go = useGo();
+  const { t } = useI18n();
+  const shop = go.active;
+  const month = monthKey(todayISO());
+  if (!shop) return null;
+  return (
+    <div className="grid gap-3">
+      <div>
+        <h2 className="text-xl font-semibold">{t.workFixed}</h2>
+        <p className="text-sm text-muted">{t.workFixedHint}</p>
+      </div>
+      {shop.customers.length === 0 && <p className="text-sm text-muted">{t.noPeople}</p>}
+      {shop.customers.map((c) => {
+        const paid = shop.payments.filter((p) => p.customerId === c.id && p.date.startsWith(month)).reduce((s, p) => s + p.amount, 0);
+        const fee = c.passAmount ?? 0;
+        const done = fee > 0 && paid >= fee;
+        return (
+          <div key={c.id} className="sheet grid gap-3 p-4">
+            <p className="text-lg font-semibold">{c.name}</p>
+            <Field label={t.feeWord}>
+              <TextInput
+                inputMode="decimal"
+                defaultValue={fee ? String(fee) : ""}
+                onBlur={(e) => {
+                  const n = Number(e.target.value) || 0;
+                  if (n === fee) return;
+                  void go.saveCustomer(shop.shop.id, { ...c, passAmount: n });
+                }}
+              />
+            </Field>
+            <p className="text-sm text-muted">{done ? t.paidWord : inr(Math.max(0, fee - paid))}</p>
+            <Btn
+              tone={done ? "ghost" : "stamp"}
+              disabled={done || fee <= 0 || go.busy}
+              onClick={() =>
+                void go.collect(shop.shop.id, {
+                  id: crypto.randomUUID(),
+                  shopId: shop.shop.id,
+                  customerId: c.id,
+                  customerName: c.name,
+                  date: todayISO(),
+                  amount: Math.max(0, fee - paid),
+                  method: "cash",
+                  note: t.workFixed,
+                })
+              }
+            >
+              {done ? t.paidWord : t.markPaid}
+            </Btn>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function RoundView() {
+  const go = useGo();
+  const { t } = useI18n();
+  const shop = go.active;
+  const today = todayISO();
+  const month = monthKey(today);
+  const soFar = Number(today.slice(8, 10)) || 0;
+  if (!shop) return null;
+  const skips = shop.skips ?? [];
+  return (
+    <div className="grid gap-3">
+      <div>
+        <h2 className="text-xl font-semibold">{t.workDaily}</h2>
+        <p className="text-sm text-muted">{t.workDailyHint}</p>
+      </div>
+      {shop.customers.length === 0 && <p className="text-sm text-muted">{t.noPeople}</p>}
+      {shop.customers.map((c) => {
+        const off = skips.filter((s) => s.customerId === c.id && s.date.startsWith(month)).length;
+        const away = skips.some((s) => s.customerId === c.id && s.date === today);
+        const rate = c.dayRate ?? 0;
+        const due = rate * Math.max(0, soFar - off);
+        return (
+          <div key={c.id} className="sheet grid gap-3 p-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-lg font-semibold">{c.name}</p>
+              <p className="text-sm">{inr(due)}</p>
+            </div>
+            <Field label={t.perDay}>
+              <TextInput
+                inputMode="decimal"
+                defaultValue={rate ? String(rate) : ""}
+                onBlur={(e) => {
+                  const n = Number(e.target.value) || 0;
+                  if (n === rate) return;
+                  void go.saveCustomer(shop.shop.id, { ...c, dayRate: n });
+                }}
+              />
+            </Field>
+            <p className="text-sm text-muted">
+              {t.offDays}: {off}
+            </p>
+            <Btn tone={away ? "ink" : "stamp"} disabled={go.busy} onClick={() => void go.toggleSkip(shop.shop.id, c.id, today)}>
+              {away ? t.comingWord : t.notToday}
+            </Btn>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -997,10 +1120,10 @@ function ServiceForm({
   const [work, setWork] = useState<WorkMode | "">("");
   const [shop, setShop] = useState("");
   const ready = Boolean(service.trim() && shop.trim() && work);
-  const ways: Array<{ id: WorkMode; label: string }> = [
-    { id: "order", label: t.workOrder },
-    { id: "fixed", label: t.workFixed },
-    { id: "daily", label: t.workDaily },
+  const ways: Array<{ id: WorkMode; label: string; hint: string }> = [
+    { id: "order", label: t.workOrder, hint: t.workOrderHint },
+    { id: "fixed", label: t.workFixed, hint: t.workFixedHint },
+    { id: "daily", label: t.workDaily, hint: t.workDailyHint },
   ];
   return (
     <form
@@ -1032,10 +1155,11 @@ function ServiceForm({
           <button
             key={way.id}
             type="button"
-            className={`min-h-11 rounded-full border px-3 text-sm ${work === way.id ? "border-stamp bg-stamp text-stamp-ink" : "border-line bg-paper"}`}
+            className={`min-h-16 rounded-2xl border px-4 py-3 text-left ${work === way.id ? "border-stamp bg-stamp text-stamp-ink" : "border-line bg-paper"}`}
             onClick={() => setWork(way.id)}
           >
-            {way.label}
+            <span className="block text-base font-semibold">{way.label}</span>
+            <span className="mt-0.5 block text-xs leading-4 opacity-80">{way.hint}</span>
           </button>
         ))}
       </div>

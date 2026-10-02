@@ -5,6 +5,7 @@ import {
   recipeLink,
   recipePayment,
   recipePlaceOrder,
+  recipeSkip,
   recipeStatus,
   recipeUpsertCustomer,
   recipeUpsertItem,
@@ -63,6 +64,7 @@ type GoApi = {
   placeOrder: (shopId: string, order: Order) => Promise<void>;
   setStatus: (shopId: string, orderId: string, status: OrderStatus) => Promise<void>;
   collect: (shopId: string, payment: Payment) => Promise<void>;
+  toggleSkip: (shopId: string, customerId: string, date: string) => Promise<void>;
   google: () => Promise<FbUser>;
   googleAccount: FbUser | null;
 };
@@ -555,6 +557,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
         }
         return commit(shopId, (b) => recipePayment(b, payment));
       },
+      toggleSkip: (shopId, customerId, date) => commit(shopId, (b) => recipeSkip(b, customerId, date)),
       changePassword: async (password) => {
         const live = sessionRef.current;
         if (!live || live.kind !== "customer") return;

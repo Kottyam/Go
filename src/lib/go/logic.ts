@@ -196,7 +196,7 @@ export function memberLoginId(shopCode: string, username: string) {
 }
 
 export function emptyBlob(shop: Shop, ownerUid: string): ShopBlob {
-  return { shop, ownerUid, items: [], customers: [], orders: [], payments: [], rev: 1 };
+  return { shop, ownerUid, items: [], customers: [], orders: [], payments: [], skips: [], rev: 1 };
 }
 
 export function recipeUpsertItem(b: ShopBlob, item: Item): ShopBlob {
@@ -255,6 +255,16 @@ export function recipeStatus(b: ShopBlob, orderId: string, status: OrderStatus):
     rev: b.rev + 1,
     items,
     orders: b.orders.map((o) => (o.id === orderId ? { ...o, status } : o)),
+  };
+}
+
+export function recipeSkip(b: ShopBlob, customerId: string, date: string): ShopBlob {
+  const skips = b.skips ?? [];
+  const has = skips.some((s) => s.customerId === customerId && s.date === date);
+  return {
+    ...b,
+    rev: b.rev + 1,
+    skips: has ? skips.filter((s) => !(s.customerId === customerId && s.date === date)) : [...skips, { customerId, date }],
   };
 }
 

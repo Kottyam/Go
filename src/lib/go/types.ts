@@ -49,6 +49,8 @@ export type Customer = {
   route: string;
   creditLimit: number;
   note: string;
+  passAmount?: number;
+  dayRate?: number;
   linkedUid?: string;
   username?: string;
   passHash?: string;
@@ -91,6 +93,11 @@ export type Payment = {
   note: string;
 };
 
+export type DayOff = {
+  customerId: string;
+  date: string;
+};
+
 export type ShopBlob = {
   shop: Shop;
   ownerUid: string;
@@ -98,6 +105,7 @@ export type ShopBlob = {
   customers: Customer[];
   orders: Order[];
   payments: Payment[];
+  skips?: DayOff[];
   rev: number;
 };
 
