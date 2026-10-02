@@ -13,7 +13,7 @@ function Home() {
         <div className="grid min-h-screen place-items-center bg-paper text-ink">
           <div className="text-center">
             <p className="font-display text-5xl text-stamp">GO Service</p>
-            <p className="mt-2 text-sm text-muted">ക്രെഡിറ്റ് ബിൽ</p>
+            <p className="mt-3 text-xs tracking-wide text-muted">powered by Alien 1729</p>
           </div>
         </div>
       }

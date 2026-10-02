@@ -1,5 +1,5 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, getRedirectResult, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
+import { getAuth, getRedirectResult, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
 import {
   arrayUnion,
   doc,
@@ -11,6 +11,7 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import type { FbUser } from "./config";
+import { memberEmail } from "./logic";
 import type { FirebaseConfig, ShopBlob } from "./types";
 
 const apps = new Map<string, FirebaseApp>();
@@ -73,6 +74,73 @@ export async function signInGoogle(config: FirebaseConfig, role: "owner" | "cust
     sessionStorage.removeItem("go-auth-role");
     throw e;
   }
+}
+
+function provisionApp(config: FirebaseConfig) {
+  const key = `prov-${config.projectId}`.replace(/[^a-zA-Z0-9_-]/g, "");
+  const existing = apps.get(key);
+  if (existing) return existing;
+  const app = initializeApp(
+    {
+      apiKey: config.apiKey,
+      authDomain: config.authDomain,
+      projectId: config.projectId,
+      appId: config.appId,
+      storageBucket: config.storageBucket || undefined,
+      messagingSenderId: config.messagingSenderId || undefined,
+    },
+    key,
+  );
+  apps.set(key, app);
+  return app;
+}
+
+export async function signInMember(config: FirebaseConfig, username: string, password: string): Promise<FbUser> {
+  const cred = await signInWithEmailAndPassword(getAuth(appFor(config)), memberEmail(username), password);
+  return toUser(cred.user);
+}
+
+export async function provisionMember(
+  config: FirebaseConfig,
+  username: string,
+  password: string,
+  shopId: string,
+  customerId: string,
+) {
+  const app = provisionApp(config);
+  const auth = getAuth(app);
+  const email = memberEmail(username);
+  let cred;
+  try {
+    cred = await createUserWithEmailAndPassword(auth, email, password);
+  } catch (e) {
+    const code = typeof e === "object" && e && "code" in e ? String((e as { code: string }).code) : "";
+    if (!code.includes("email-already-in-use")) throw e;
+    cred = await signInWithEmailAndPassword(auth, email, password);
+  }
+  const uid = cred.user.uid;
+  await setDoc(doc(getFirestore(app), "goMembers", uid), {
+    shopId,
+    customerId,
+    username: username.trim().toLowerCase(),
+  });
+  await signOut(auth);
+  return uid;
+}
+
+export async function readMember(config: FirebaseConfig, uid: string) {
+  const snap = await getDoc(doc(dbFor(config), "goMembers", uid));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  const shopId = String(data.shopId || "");
+  const customerId = String(data.customerId || "");
+  if (!shopId || !customerId) return null;
+  return { shopId, customerId };
+}
+
+export async function shopById(config: FirebaseConfig, shopId: string): Promise<ShopBlob | null> {
+  const snap = await getDoc(doc(dbFor(config), "goShops", shopId));
+  return snap.exists() ? (snap.data() as ShopBlob) : null;
 }
 
 export async function signOutFirebase(config: FirebaseConfig) {

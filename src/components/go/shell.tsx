@@ -12,13 +12,13 @@ export function Shell() {
       <div className="grid min-h-screen place-items-center bg-paper text-ink">
         <div className="text-center">
           <p className="font-display text-5xl text-stamp">{t.brand}</p>
-          <p className="mt-2 text-sm text-muted">{t.bills}</p>
+          <p className="mt-3 text-xs tracking-wide text-muted">{t.poweredBy}</p>
         </div>
       </div>
     );
   }
   return (
-    <>
+    <div className={go.session ? undefined : "flex min-h-dvh flex-col"}>
       {go.notice && (
         <div className="no-print border-b border-line bg-due-bg px-4 py-3 text-sm text-due">
           <div className="mx-auto flex max-w-5xl items-start justify-between gap-3">
@@ -32,9 +32,13 @@ export function Shell() {
       <div className="no-print sticky top-0 z-30 flex justify-end border-b border-line bg-paper px-3 py-2">
         <LangSelect />
       </div>
-      {!go.session && <Gate />}
+      {!go.session && (
+        <div className="flex flex-1 flex-col">
+          <Gate />
+        </div>
+      )}
       {go.session?.kind === "owner" && <OwnerApp />}
       {go.session?.kind === "customer" && <CustomerApp />}
-    </>
+    </div>
   );
 }

@@ -166,6 +166,16 @@ export function applyStock(items: Item[], lines: OrderLine[], dir: 1 | -1): Item
   });
 }
 
+export async function passHash(password: string) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export function memberEmail(username: string) {
+  const slug = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
+  return `${slug}@members.go1729.app`;
+}
+
 export function emptyBlob(shop: Shop, ownerUid: string): ShopBlob {
   return { shop, ownerUid, items: [], customers: [], orders: [], payments: [], rev: 1 };
 }
@@ -180,13 +190,29 @@ export function recipeUpsertItem(b: ShopBlob, item: Item): ShopBlob {
 }
 
 export function recipeUpsertCustomer(b: ShopBlob, customer: Customer): ShopBlob {
+  const username = customer.username?.trim().toLowerCase() || undefined;
+  if (username && b.customers.some((c) => c.id !== customer.id && (c.username || "").toLowerCase() === username)) {
+    throw new Error("@userTaken");
+  }
   const exists = b.customers.some((c) => c.id === customer.id);
+  const next: Customer = { ...customer, username };
   return {
     ...b,
     rev: b.rev + 1,
     customers: exists
-      ? b.customers.map((c) => (c.id === customer.id ? { ...c, ...customer, linkedUid: c.linkedUid } : c))
-      : [customer, ...b.customers],
+      ? b.customers.map((c) =>
+          c.id === customer.id
+            ? {
+                ...c,
+                ...next,
+                username: username || c.username,
+                passHash: next.passHash || c.passHash,
+                memberUid: next.memberUid || c.memberUid,
+                linkedUid: c.linkedUid,
+              }
+            : c,
+        )
+      : [next, ...b.customers],
   };
 }
 

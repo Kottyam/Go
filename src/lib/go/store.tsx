@@ -9,11 +9,12 @@ import {
   recipeUpsertCustomer,
   recipeUpsertItem,
   shopCode,
+  passHash,
 } from "./logic";
 import { seed } from "./seed";
 import type { Customer, FirebaseConfig, Item, Order, OrderStatus, Payment, Session, Shop, ShopBlob } from "./types";
 
-const DEMO_KEY = "go-ledger-demo-v1";
+const DEMO_KEY = "go-ledger-demo-v2";
 const CFG_KEY = "go-firebase-config";
 const SESSION_KEY = "go-session-v1";
 
@@ -43,6 +44,7 @@ type GoApi = {
   setActiveShop: (id: string) => void;
   enterDemoOwner: () => void;
   enterDemoCustomer: (customerId: string) => void;
+  loginMember: (username: string, password: string) => Promise<void>;
   saveConfig: (config: FirebaseConfig | null) => void;
   signInOwner: () => Promise<void>;
   lookupShop: (code: string) => Promise<ShopBlob | null>;
@@ -52,7 +54,7 @@ type GoApi = {
   resetDemo: () => void;
   addShop: (input: Omit<Shop, "id" | "code">) => Promise<void>;
   saveItem: (shopId: string, item: Item) => Promise<void>;
-  saveCustomer: (shopId: string, customer: Customer) => Promise<void>;
+  saveCustomer: (shopId: string, customer: Customer, password?: string) => Promise<void>;
   placeOrder: (shopId: string, order: Order) => Promise<void>;
   setStatus: (shopId: string, orderId: string, status: OrderStatus) => Promise<void>;
   collect: (shopId: string, payment: Payment) => Promise<void>;
@@ -250,6 +252,71 @@ export function GoProvider({ children }: { children: ReactNode }) {
           customerId: customer.id,
         });
       },
+      loginMember: async (username, password) => {
+        const name = username.trim().toLowerCase();
+        if (!name || !password) {
+          setNotice("@badLogin");
+          return;
+        }
+        const hash = await passHash(password);
+        const demo = blobsRef.current.length ? blobsRef.current : loadDemo();
+        const named = demo.flatMap((b) => b.customers.filter((c) => (c.username || "").toLowerCase() === name).map((c) => ({ blob: b, customer: c })));
+        const hit = named.find((row) => row.customer.passHash === hash);
+        if (hit) {
+          setBlobs(demo);
+          setActiveShopId(hit.blob.shop.id);
+          setSession({
+            kind: "customer",
+            backend: "demo",
+            name: hit.customer.name,
+            uid: "demo-" + hit.customer.id,
+            email: "",
+            shopId: hit.blob.shop.id,
+            customerId: hit.customer.id,
+          });
+          return;
+        }
+        if (named.length > 0) {
+          setNotice("@badLogin");
+          return;
+        }
+        const cfg = configRef.current;
+        if (!cfg) {
+          setNotice("@badLogin");
+          return;
+        }
+        setBusy(true);
+        try {
+          const fb = await loadFirebase();
+          const user = await fb.signInMember(cfg, name, password);
+          const link = await fb.readMember(cfg, user.uid);
+          if (!link) {
+            setNotice("@badLogin");
+            return;
+          }
+          const blob = await fb.shopById(cfg, link.shopId);
+          const customer = blob?.customers.find((c) => c.id === link.customerId);
+          if (!blob || !customer) {
+            setNotice("@customerMissing");
+            return;
+          }
+          setBlobs([blob]);
+          setActiveShopId(blob.shop.id);
+          setSession({
+            kind: "customer",
+            backend: "firebase",
+            name: customer.name,
+            uid: user.uid,
+            email: user.email,
+            shopId: blob.shop.id,
+            customerId: customer.id,
+          });
+        } catch (e) {
+          setNotice(explainFirebase(e));
+        } finally {
+          setBusy(false);
+        }
+      },
       saveConfig: (next) => {
         if (next && next.projectId !== FIREBASE_PROJECT) {
           setNotice(`@wrongProject|${FIREBASE_PROJECT}|${next.projectId}`);
@@ -398,7 +465,26 @@ export function GoProvider({ children }: { children: ReactNode }) {
         }
       },
       saveItem: (shopId, item) => commit(shopId, (b) => recipeUpsertItem(b, item)),
-      saveCustomer: (shopId, customer) => commit(shopId, (b) => recipeUpsertCustomer(b, customer)),
+      saveCustomer: async (shopId, customer, password) => {
+        let next = { ...customer, username: customer.username?.trim().toLowerCase() || undefined };
+        if (password) {
+          if (password.length < 6) {
+            setNotice("@passShort");
+            return;
+          }
+          next.passHash = await passHash(password);
+          const live = sessionRef.current;
+          const cfg = configRef.current;
+          if (live?.backend === "firebase" && cfg && next.username) {
+            try {
+              next.memberUid = await (await loadFirebase()).provisionMember(cfg, next.username, password, shopId, next.id);
+            } catch (e) {
+              setNotice(explainFirebase(e));
+            }
+          }
+        }
+        await commit(shopId, (b) => recipeUpsertCustomer(b, next));
+      },
       placeOrder: async (shopId, order) => {
         if (order.lines.length === 0) {
           setNotice("@needItem");

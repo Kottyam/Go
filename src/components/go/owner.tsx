@@ -62,17 +62,14 @@ export function OwnerApp() {
   const [compose, setCompose] = useState(false);
   const shop = go.active;
   const moreOn = !["home", "orders", "bills", "routes"].includes(view);
-  const who = go.session?.uid === "demo-owner" ? t.demoOwnerName : go.session?.name;
 
   if (go.blobs.length === 0) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col px-4 py-8">
+      <main className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-center px-6 py-8">
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>
-            <p className="font-display text-4xl leading-none text-stamp">{t.brand}</p>
-            <p className="mt-2 text-sm text-muted">
-              {who}. {t.which}
-            </p>
+            <p className="font-display text-5xl leading-none text-stamp">{t.brand}</p>
+            <p className="mt-2 text-xs tracking-wide text-muted">{t.poweredBy}</p>
           </div>
           <button
             type="button"
@@ -83,7 +80,11 @@ export function OwnerApp() {
             <LogOut size={18} />
           </button>
         </div>
-        <ServiceForm submitLabel={t.startService} onSubmit={(input) => void go.addShop(input)} />
+        <h2 className="font-semibold">{t.createService}</h2>
+        <p className="mt-1 text-sm leading-6 text-muted">{t.createLead}</p>
+        <div className="mt-4">
+          <ServiceForm submitLabel={t.createBtn} onSubmit={(input) => void go.addShop(input)} />
+        </div>
       </main>
     );
   }
@@ -209,6 +210,14 @@ function HomeView({ onOrder, onBills, onRoutes }: { onOrder: () => void; onBills
   const collected = shop.payments.filter((p) => p.date.slice(0, 7) === month).reduce((s, p) => s + p.amount, 0);
   return (
     <div className="grid gap-4">
+      <section className="sheet p-4">
+        <p className="text-sm text-muted">{t.yourCode}</p>
+        <p className="font-display text-4xl tracking-wide text-stamp">{shop.shop.code}</p>
+        <p className="mt-1 text-sm text-muted">
+          {shop.shop.name} · {serviceText(lang, shop.shop)}
+        </p>
+        <p className="mt-2 text-xs leading-5 text-muted">{t.codeHelp}</p>
+      </section>
       <div className="grid grid-cols-2 gap-3">
         <button type="button" onClick={onBills} className="sheet p-4 text-left">
           <p className="text-sm text-muted">{t.due}</p>
@@ -604,8 +613,8 @@ function PeopleView() {
           key={edit?.id || "new"}
           initial={start}
           onClose={() => setOpen(false)}
-          onSave={async (customer) => {
-            await go.saveCustomer(shop.shop.id, customer);
+          onSave={async (customer, password) => {
+            await go.saveCustomer(shop.shop.id, customer, password);
             setOpen(false);
           }}
         />
@@ -628,6 +637,7 @@ function PeopleView() {
                   <span className="block font-medium">{c.name}</span>
                   <span className="text-sm text-muted">
                     {c.phone} · {c.route || t.noRoute}
+                    {c.username ? ` · ${c.username}` : ""}
                   </span>
                   {over && <span className="block text-sm text-due">{t.overLimit}</span>}
                 </span>
@@ -647,7 +657,7 @@ function PersonForm({
   onClose,
 }: {
   initial: Customer;
-  onSave: (c: Customer) => Promise<void>;
+  onSave: (c: Customer, password?: string) => Promise<void>;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -656,21 +666,27 @@ function PersonForm({
   const [route, setRoute] = useState(initial.route);
   const [limit, setLimit] = useState(String(initial.creditLimit || ""));
   const [note, setNote] = useState(initial.note);
+  const [username, setUsername] = useState(initial.username ?? "");
+  const [password, setPassword] = useState("");
   return (
     <form
       className="sheet grid gap-3 p-4"
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim()) return;
-        void onSave({
-          ...initial,
-          id: initial.id || crypto.randomUUID(),
-          name: name.trim(),
-          phone: phone.trim(),
-          route: route.trim(),
-          creditLimit: Number(limit || 0),
-          note: note.trim(),
-        });
+        void onSave(
+          {
+            ...initial,
+            id: initial.id || crypto.randomUUID(),
+            name: name.trim(),
+            phone: phone.trim(),
+            route: route.trim(),
+            creditLimit: Number(limit || 0),
+            note: note.trim(),
+            username: username.trim().toLowerCase() || undefined,
+          },
+          password,
+        );
       }}
     >
       <Field label={t.name}>
@@ -687,6 +703,18 @@ function PersonForm({
       </Field>
       <Field label={t.note}>
         <TextInput value={note} onChange={(e) => setNote(e.target.value)} />
+      </Field>
+      <Field label={t.memberUser}>
+        <TextInput value={username} autoComplete="off" onChange={(e) => setUsername(e.target.value)} placeholder="rahim" />
+      </Field>
+      <Field label={t.memberPass}>
+        <TextInput
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={initial.passHash ? t.passKeep : t.memberHint}
+        />
       </Field>
       <div className="flex gap-2">
         <Btn type="submit" tone="stamp">
@@ -919,7 +947,7 @@ function ShopsView() {
       {open && (
         <div className="sheet p-4">
           <ServiceForm
-            submitLabel={t.makeShop}
+            submitLabel={t.createBtn}
             onSubmit={(input) => {
               void go.addShop(input);
               setOpen(false);
@@ -951,62 +979,57 @@ function ServiceForm({
   onSubmit: (input: { name: string; kind: ShopKind; serviceName?: string; phone: string; address: string; upi: string }) => void;
 }) {
   const { t } = useI18n();
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<ShopKind | "">("");
-  const [custom, setCustom] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [upi, setUpi] = useState("");
-  const ready = Boolean(kind && name.trim() && (kind !== "custom" || custom.trim()));
+  const [service, setService] = useState("");
+  const [kind, setKind] = useState<ShopKind>("custom");
+  const [shop, setShop] = useState("");
+  const ready = Boolean(service.trim() && shop.trim());
   return (
     <form
       className="grid gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!ready || !kind) return;
+        if (!ready) return;
+        const named = service.trim();
+        const byLabel = SERVICES.find((s) => s.id !== "custom" && t.svc[s.id].toLowerCase() === named.toLowerCase());
+        const resolved: ShopKind = byLabel?.id ?? "custom";
         onSubmit({
-          name: name.trim(),
-          kind,
-          serviceName: kind === "custom" ? custom.trim() : undefined,
-          phone: phone.trim(),
-          address: address.trim(),
-          upi: upi.trim(),
+          name: shop.trim(),
+          kind: resolved,
+          serviceName: resolved === "custom" ? named : undefined,
+          phone: "",
+          address: "",
+          upi: "",
         });
-        setName("");
-        setCustom("");
-        setKind("");
+        setService("");
+        setShop("");
+        setKind("custom");
       }}
     >
-      <div className="grid grid-cols-2 gap-2">
-        {SERVICES.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            className={`min-h-11 rounded-2xl border px-3 py-3 text-left text-sm font-medium ${
-              kind === s.id ? "border-stamp bg-stamp text-stamp-ink" : "border-line bg-paper text-ink"
-            } ${s.id === "custom" ? "col-span-2" : ""}`}
-            onClick={() => setKind(s.id)}
-          >
-            {s.id === "custom" ? t.customBtn : t.svc[s.id]}
-          </button>
-        ))}
+      <Field label={t.nameService}>
+        <TextInput value={service} onChange={(e) => { setService(e.target.value); setKind("custom"); }} placeholder={t.serviceEg} required />
+      </Field>
+      <div>
+        <p className="mb-2 text-sm text-muted">{t.pickOne}</p>
+        <div className="flex flex-wrap gap-2">
+          {SERVICES.filter((s) => s.id !== "custom").map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={`min-h-11 rounded-full border px-3 text-sm ${
+                kind === s.id && service === t.svc[s.id] ? "border-stamp bg-stamp text-stamp-ink" : "border-line bg-paper"
+              }`}
+              onClick={() => {
+                setKind(s.id);
+                setService(t.svc[s.id]);
+              }}
+            >
+              {t.svc[s.id]}
+            </button>
+          ))}
+        </div>
       </div>
-      {kind === "custom" && (
-        <Field label={t.serviceName}>
-          <TextInput value={custom} onChange={(e) => setCustom(e.target.value)} placeholder={t.serviceEg} required />
-        </Field>
-      )}
-      <Field label={t.shopName}>
-        <TextInput value={name} onChange={(e) => setName(e.target.value)} required />
-      </Field>
-      <Field label={t.phone}>
-        <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} />
-      </Field>
-      <Field label={t.address}>
-        <TextInput value={address} onChange={(e) => setAddress(e.target.value)} />
-      </Field>
-      <Field label="UPI">
-        <TextInput value={upi} onChange={(e) => setUpi(e.target.value)} placeholder="shop@upi" />
+      <Field label={t.nameShop}>
+        <TextInput value={shop} onChange={(e) => setShop(e.target.value)} required />
       </Field>
       <Btn type="submit" tone="stamp" disabled={!ready}>
         {submitLabel}

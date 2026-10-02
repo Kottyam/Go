@@ -14,6 +14,8 @@ function item(
   return { id, shopId, name, unit, price, stock, active: true };
 }
 
+const MEMBER_PASS = "2b2fd4b2d6b043026a301e15c6d1e9e85b78d61038a04c8f5b78fac48c59633a";
+
 function customer(
   id: string,
   shopId: string,
@@ -21,9 +23,10 @@ function customer(
   phone: string,
   route: string,
   creditLimit: number,
+  username: string,
   note = "",
 ): Customer {
-  return { id, shopId, name, phone, route, creditLimit, note };
+  return { id, shopId, name, phone, route, creditLimit, note, username, passHash: MEMBER_PASS };
 }
 
 function order(
@@ -81,9 +84,9 @@ export function seed(): ShopBlob[] {
     item("biskit", "shop-bake", "ബിസ്കറ്റ് പാക്കറ്റ്", "പാക്ക്", 30, 16),
   ];
   bake.customers = [
-    customer("rahim", "shop-bake", "റഹീം ടീ സ്റ്റാൾ", "9847011122", "പാലയം", 3000, "രാവിലെ 7 മണിക്ക്"),
-    customer("mary", "shop-bake", "മേരി കോൺവെന്റ്", "9847022233", "ഫോർട്ട് കൊച്ചി", 8000),
-    customer("anil", "shop-bake", "അനിൽ കാന്റീൻ", "9847033344", "ഇടപ്പള്ളി", 5000),
+    customer("rahim", "shop-bake", "റഹീം ടീ സ്റ്റാൾ", "9847011122", "പാലയം", 3000, "rahim", "രാവിലെ 7 മണിക്ക്"),
+    customer("mary", "shop-bake", "മേരി കോൺവെന്റ്", "9847022233", "ഫോർട്ട് കൊച്ചി", 8000, "mary"),
+    customer("anil", "shop-bake", "അനിൽ കാന്റീൻ", "9847033344", "ഇടപ്പള്ളി", 5000, "anil"),
   ];
   bake.orders = [
     order("o1", "shop-bake", "rahim", "റഹീം ടീ സ്റ്റാൾ", prev, [{ itemId: "bun", name: "ബൺ", unit: "എണ്ണം", qty: 40, price: 12 }, { itemId: "puff", name: "പഫ്", unit: "എണ്ണം", qty: 20, price: 18 }], "credit", "delivered"),
@@ -117,9 +120,9 @@ export function seed(): ShopBlob[] {
     item("podi", "shop-whole", "അരിപ്പൊടി", "കി.ഗ്രാം", 55, 90),
   ];
   whole.customers = [
-    customer("hotel", "shop-whole", "ഹോട്ടൽ ഐശ്വര്യ", "9847044455", "എംജി റോഡ്", 25000),
-    customer("mini", "shop-whole", "മിനി സ്റ്റോർസ്", "9847055566", "ആലുവ", 15000),
-    customer("hostel", "shop-whole", "ഗ്രീൻ ഹോസ്റ്റൽ", "9847066678", "കലൂർ", 20000, "മാസാവസാനം ബിൽ"),
+    customer("hotel", "shop-whole", "ഹോട്ടൽ ഐശ്വര്യ", "9847044455", "എംജി റോഡ്", 25000, "hotel"),
+    customer("mini", "shop-whole", "മിനി സ്റ്റോർസ്", "9847055566", "ആലുവ", 15000, "mini"),
+    customer("hostel", "shop-whole", "ഗ്രീൻ ഹോസ്റ്റൽ", "9847066678", "കലൂർ", 20000, "hostel", "മാസാവസാനം ബിൽ"),
   ];
   whole.orders = [
     order("w1", "shop-whole", "hostel", "ഗ്രീൻ ഹോസ്റ്റൽ", prev, [{ itemId: "sugar", name: "പഞ്ചസാര", unit: "കി.ഗ്രാം", qty: 40, price: 42 }, { itemId: "raw", name: "പച്ച അരി", unit: "കി.ഗ്രാം", qty: 50, price: 48 }], "credit", "delivered"),

@@ -12,6 +12,9 @@ service cloud.firestore {
     match /goCodes/{id} {
       allow read, write: if request.auth != null;
     }
+    match /goMembers/{id} {
+      allow read, write: if request.auth != null && request.auth.uid == id;
+    }
   }
 }`;
 
@@ -30,6 +33,10 @@ export type FbUser = { uid: string; name: string; email: string };
 
 export function explainFirebase(e: unknown) {
   const code = typeof e === "object" && e && "code" in e ? String((e as { code: string }).code) : "";
+  if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found") || code.includes("invalid-email")) return "@badLogin";
+  if (code.includes("weak-password")) return "@passShort";
+  if (code.includes("operation-not-allowed")) return "@emailOff";
+  if (code.includes("email-already-in-use")) return "@userTaken";
   if (code.includes("popup-blocked") || code.includes("operation-not-supported")) return "@popupBlocked";
   if (code.includes("popup-closed")) return "@popupClosed";
   if (code.includes("unauthorized-domain")) return "@unauthorized";

@@ -41,6 +41,9 @@ export type Customer = {
   creditLimit: number;
   note: string;
   linkedUid?: string;
+  username?: string;
+  passHash?: string;
+  memberUid?: string;
 };
 
 export type OrderLine = {
