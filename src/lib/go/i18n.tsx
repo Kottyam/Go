@@ -1586,7 +1586,7 @@ export function LangSelect() {
   return (
     <select
       aria-label={t.language}
-      className="field w-auto max-w-44 min-h-11 shrink-0 bg-card px-2 text-sm"
+      className="field w-auto max-w-28 min-w-0 shrink min-h-11 bg-card px-2 text-sm"
       value={lang}
       onChange={(e) => setLang(e.target.value as Lang)}
     >

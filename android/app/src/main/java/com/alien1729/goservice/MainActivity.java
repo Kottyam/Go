@@ -28,6 +28,8 @@ public class MainActivity extends AppCompatActivity {
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
+        settings.setUseWideViewPort(true);
+        settings.setLoadWithOverviewMode(true);
         settings.setUserAgentString(settings.getUserAgentString().replace("; wv", "") + " GoServiceApp");
 
         CookieManager cookies = CookieManager.getInstance();
@@ -37,7 +39,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         final WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
-                .setDomain("goservice.online")
                 .addPathHandler("/", new WebViewAssetLoader.AssetsPathHandler(this))
                 .build();
 
@@ -59,6 +60,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        webView.loadUrl("https://goservice.online/index.html");
+        webView.loadUrl("https://appassets.androidplatform.net/index.html");
     }
 }
