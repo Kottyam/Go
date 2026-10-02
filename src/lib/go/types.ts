@@ -9,6 +9,16 @@ export type ShopKind =
   | "medical"
   | "textile"
   | "electronics"
+  | "rice"
+  | "newspaper"
+  | "milk"
+  | "water"
+  | "vegetable"
+  | "farm"
+  | "house"
+  | "help"
+  | "tuition"
+  | "laundry"
   | "custom";
 
 export type Shop = {

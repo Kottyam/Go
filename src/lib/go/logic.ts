@@ -81,6 +81,16 @@ export const SERVICES: { id: ShopKind; label: string }[] = [
   { id: "medical", label: "മെഡിക്കൽ" },
   { id: "textile", label: "ടെക്സ്റ്റൈൽ" },
   { id: "electronics", label: "ഇലക്ട്രോണിക്സ്" },
+  { id: "rice", label: "അരി" },
+  { id: "newspaper", label: "പത്രം" },
+  { id: "milk", label: "പാൽ" },
+  { id: "water", label: "വെള്ളം" },
+  { id: "vegetable", label: "പച്ചക്കറി" },
+  { id: "farm", label: "ഫാം" },
+  { id: "house", label: "വീട്" },
+  { id: "help", label: "വീട്ടുജോലി" },
+  { id: "tuition", label: "ട്യൂഷൻ" },
+  { id: "laundry", label: "അലക്ക്" },
   { id: "custom", label: "മറ്റൊന്ന്" },
 ];
 
