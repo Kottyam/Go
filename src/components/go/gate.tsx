@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { useI18n } from "@/lib/go/i18n";
+import { noticeText, useI18n } from "@/lib/go/i18n";
 import { useGo } from "@/lib/go/store";
 import { Btn, Field, TextInput } from "./ui";
 
 export function Gate() {
   const go = useGo();
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [auth, setAuth] = useState(false);
@@ -70,7 +70,7 @@ export function Gate() {
 
       {go.notice && (
         <p className="mt-3 rounded-xl border border-due bg-due-bg px-4 py-3 text-sm leading-5 text-due" role="alert">
-          {go.notice.startsWith("@") ? go.notice : go.notice}
+          {noticeText(lang, go.notice)}
         </p>
       )}
     </main>
