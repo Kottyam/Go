@@ -115,7 +115,11 @@
     background: var(--color-card);
     box-shadow: 0 1px 0 color-mix(in srgb, var(--color-ink) 4%, transparent);
   }
+  .mobile-content-bottom {
+    padding-bottom: max(7rem, calc(5rem + var(--go-system-bottom, 0px)));
+  }
   .dock {
+    bottom: var(--go-system-bottom, 0px);
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
