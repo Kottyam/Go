@@ -8,6 +8,9 @@ export function SuperApp() {
   const { lang, t } = useI18n();
   const owners = go.directory?.owners ?? [];
   const shops = go.directory?.shops ?? [];
+  const totalCustomers = shops.reduce((n, b) => n + b.customers.length, 0);
+  const totalOrders = shops.reduce((n, b) => n + b.orders.length, 0);
+  const totalCollected = shops.reduce((n, b) => n + b.payments.reduce((s, p) => s + p.amount, 0), 0);
   return (
     <div className="mx-auto min-h-screen w-full min-w-0 max-w-3xl overflow-x-hidden">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-paper px-4 py-3">
@@ -20,6 +23,12 @@ export function SuperApp() {
         </button>
       </header>
       <div className="grid gap-3 px-4 py-4">
+        <section className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div className="sheet p-3"><p className="text-xs text-muted">Businesses</p><p className="text-2xl font-semibold">{shops.length}</p></div>
+          <div className="sheet p-3"><p className="text-xs text-muted">Customers</p><p className="text-2xl font-semibold">{totalCustomers}</p></div>
+          <div className="sheet p-3"><p className="text-xs text-muted">Orders</p><p className="text-2xl font-semibold">{totalOrders}</p></div>
+          <div className="sheet p-3"><p className="text-xs text-muted">Collections</p><p className="text-lg font-semibold">{new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(totalCollected)}</p></div>
+        </section>
         {owners.length === 0 && <p className="text-sm text-muted">{t.noPeople}</p>}
         {owners.map((owner) => {
           const mine = shops.filter((s) => owner.shopIds.includes(s.shop.id) || s.ownerUid === owner.id);
