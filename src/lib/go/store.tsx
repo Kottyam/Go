@@ -27,6 +27,10 @@ const SESSION_KEY = "go-session-v1";
 const NOTIFY_READ_KEY = "go-notification-read-v1";
 const NOTIFY_DATA_KEY = "go-notification-data-v1";
 
+function sessionShopId(session: Session | null) {
+  return session?.kind === "customer" ? session.shopId : "";
+}
+
 function notificationKey(session: Session | null) {
   if (!session) return "";
   return session.kind === "customer"
@@ -190,7 +194,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
     } catch {
       setNotifications([]);
     }
-  }, [ready, session?.kind, session?.uid, session?.shopId]);
+  }, [ready, session?.kind, session?.uid, sessionShopId(session)]);
 
   useEffect(() => {
     if (!ready || !config) return;
@@ -397,7 +401,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
       }
     })();
     return () => unsubs.forEach((u) => u());
-  }, [ready, session?.kind, session?.uid, session?.shopId, config, blobs.map((b) => b.shop.id).join(",")]);
+  }, [ready, session?.kind, session?.uid, sessionShopId(session), config, blobs.map((b) => b.shop.id).join(",")]);
 
 
   async function commit(shopId: string, recipe: (blob: ShopBlob) => ShopBlob) {
