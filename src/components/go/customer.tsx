@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { monthText, useI18n } from "@/lib/go/i18n";
 import { billFor, inr, monthKey, orderTotal, passDue, qtyText, shiftMonth, todayISO, upiPayUrl } from "@/lib/go/logic";
 import { useGo } from "@/lib/go/store";
+import { NotificationBell } from "./notifications";
 import { Btn, Field, Money, shortDate, TextInput } from "./ui";
 
 export function CustomerApp() {
@@ -30,6 +31,7 @@ export function CustomerApp() {
       <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-8">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="brand-mark text-3xl text-stamp">{t.brand}</h1>
+          <NotificationBell />
           <button type="button" className="grid h-11 w-11 place-items-center rounded-full border border-line" onClick={() => void go.signOut()} aria-label={t.out}>
             <LogOut size={18} />
           </button>
@@ -68,6 +70,7 @@ export function CustomerApp() {
           <p className="truncate font-semibold">{shop.shop.name}</p>
           <p className="truncate text-xs text-muted">{customer.name}</p>
         </div>
+        <NotificationBell />
         <button type="button" className="grid h-11 w-11 place-items-center rounded-full border border-line" onClick={() => void go.signOut()} aria-label={t.out}>
           <LogOut size={18} />
         </button>
