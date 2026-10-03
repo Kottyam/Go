@@ -29,7 +29,7 @@ export function Shell() {
   if (!go.ready || hold) return <Splash />;
   return (
     <div className={`min-w-0 overflow-x-hidden ${go.session ? "" : "flex min-h-dvh flex-col"}`}>
-      {go.notice && (
+      {go.notice && go.session && (
         <div className="no-print border-b border-line bg-due-bg px-4 py-3 text-sm text-due">
           <div className="mx-auto flex max-w-5xl items-start justify-between gap-3">
             <p className="min-w-0 break-words">{noticeText(lang, go.notice)}</p>
