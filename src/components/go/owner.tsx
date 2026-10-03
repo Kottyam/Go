@@ -703,21 +703,23 @@ function BillsView() {
                 </li>
               ))}
           </ul>
-          {shop.shop.upi && (
-            <div className="mt-3 grid gap-2 text-sm">
-              <p>UPI: {shop.shop.upi}</p>
-              <div className="no-print flex flex-wrap gap-2">
-                <Btn tone="stamp" onClick={() => { const url = upiPayUrl(shop.shop.upi, shop.shop.name, open.bill.due, `Bill ${month}`); if (url) window.location.href = url; }} disabled={open.bill.due <= 0}>
-                  Pay via UPI
-                </Btn>
-                <Btn tone="ghost" onClick={() => void navigator.clipboard?.writeText(shop.shop.upi)}>Copy UPI ID</Btn>
-                <Btn tone="ghost" onClick={() => {
-                  const message = `Hello ${open.c.name}, your ${monthText(lang, month)} bill from ${shop.shop.name} is ${inr(open.bill.sales)}. Paid ${inr(open.bill.collected)}. Balance ${inr(open.bill.due)}. UPI: ${shop.shop.upi}`;
-                  window.open(whatsappBillUrl(open.c.phone, message), "_blank", "noopener,noreferrer");
-                }}>Send Bill on WhatsApp</Btn>
-              </div>
+          <div className="mt-3 grid gap-2 text-sm">
+            {shop.shop.upi && <p>UPI: {shop.shop.upi}</p>}
+            <div className="no-print flex flex-wrap gap-2">
+              {shop.shop.upi && (
+                <>
+                  <Btn tone="stamp" onClick={() => { const url = upiPayUrl(shop.shop.upi, shop.shop.name, open.bill.due, `Bill ${month}`); if (url) window.location.href = url; }} disabled={open.bill.due <= 0}>
+                    Pay via UPI
+                  </Btn>
+                  <Btn tone="ghost" onClick={() => void navigator.clipboard?.writeText(shop.shop.upi)}>Copy UPI ID</Btn>
+                </>
+              )}
+              <Btn tone="ghost" onClick={() => {
+                const message = `Hello ${open.c.name}, your ${monthText(lang, month)} bill from ${shop.shop.name} is ${inr(open.bill.sales)}. Paid ${inr(open.bill.collected)}. Balance ${inr(open.bill.due)}.${shop.shop.upi ? ` UPI: ${shop.shop.upi}` : ""}`;
+                window.open(whatsappBillUrl(open.c.phone, message), "_blank", "noopener,noreferrer");
+              }}>Send Bill on WhatsApp</Btn>
             </div>
-          )}
+          </div>
           <div className="no-print mt-4 grid gap-2 border-t border-line pt-4">
             <h4 className="font-semibold">{t.recordPay}</h4>
             <div className="grid grid-cols-2 gap-2">
