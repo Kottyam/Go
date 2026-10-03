@@ -381,6 +381,10 @@ export function GoProvider({ children }: { children: ReactNode }) {
         setBusy(true);
         try {
           const fb = await loadFirebase();
+          // Customer login starts before Firebase has an authenticated user.
+          // Authenticate anonymously first so Firestore rules can allow the
+          // shop-code/shop lookup without making the shop data public.
+          await fb.signInAnon(cfg);
           const blob = await fb.shopByCode(cfg, code);
           const customer = blob?.customers.find((c) => c.username === name);
           if (!blob || !customer || customer.passHash !== hash) {
