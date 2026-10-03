@@ -1634,11 +1634,11 @@ export function LangSelect() {
   const [open, setOpen] = useState(false);
   const current = LANGS.find((item) => item.id === lang);
   return (
-    <div className="relative inline-block max-w-36 shrink-0">
+    <div className="relative inline-block w-32 max-w-full min-w-0 shrink-0">
       <button
         type="button"
         aria-label={t.language}
-        className="flex h-10 max-w-full items-center gap-1 rounded-full border border-line bg-card px-3 text-sm"
+        className="flex h-10 w-full min-w-0 items-center justify-center gap-1 rounded-full border border-line bg-card px-2 text-sm"
         onClick={() => setOpen((value) => !value)}
       >
         <span className="truncate">{current?.name ?? "English"}</span>
