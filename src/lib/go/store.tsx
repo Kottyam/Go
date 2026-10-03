@@ -19,11 +19,48 @@ import {
   splitMemberUser,
 } from "./logic";
 import { seed } from "./seed";
-import type { Customer, Extra, FirebaseConfig, Item, Order, OrderStatus, Payment, Session, Shop, ShopBlob } from "./types";
+import type { Customer, Extra, FirebaseConfig, GoNotification, Item, Order, OrderStatus, Payment, Session, Shop, ShopBlob } from "./types";
 
 const DEMO_KEY = "go-ledger-demo-v2";
 const CFG_KEY = "go-firebase-config";
 const SESSION_KEY = "go-session-v1";
+const NOTIFY_READ_KEY = "go-notification-read-v1";
+const NOTIFY_DATA_KEY = "go-notification-data-v1";
+
+function notificationKey(session: Session | null) {
+  if (!session) return "";
+  return session.kind === "customer"
+    ? `customer:${session.uid}:${session.shopId}`
+    : `${session.kind}:${session.uid}`;
+}
+
+function changeNotification(prev: ShopBlob, next: ShopBlob): GoNotification | null {
+  if (next.orders.length > prev.orders.length) {
+    return { id: crypto.randomUUID(), kind: "order", message: "New order activity", at: Date.now(), read: false };
+  }
+  if (next.orders.some((o) => {
+    const old = prev.orders.find((x) => x.id === o.id);
+    return old && old.status !== o.status;
+  })) {
+    return { id: crypto.randomUUID(), kind: "order", message: "Order status updated", at: Date.now(), read: false };
+  }
+  if (next.payments.length > prev.payments.length) {
+    return { id: crypto.randomUUID(), kind: "payment", message: "Payment or bill collection updated", at: Date.now(), read: false };
+  }
+  if (next.customers.length !== prev.customers.length) {
+    return { id: crypto.randomUUID(), kind: "customer", message: "Customer list updated", at: Date.now(), read: false };
+  }
+  if (next.items.length !== prev.items.length || next.items.some((item) => {
+    const old = prev.items.find((x) => x.id === item.id);
+    return old && (old.price !== item.price || old.stock !== item.stock || old.active !== item.active);
+  })) {
+    return { id: crypto.randomUUID(), kind: "item", message: "Items or stock updated", at: Date.now(), read: false };
+  }
+  if (prev.shop.name !== next.shop.name || prev.shop.upi !== next.shop.upi || prev.shop.gstin !== next.shop.gstin) {
+    return { id: crypto.randomUUID(), kind: "shop", message: "Shop settings updated", at: Date.now(), read: false };
+  }
+  return { id: crypto.randomUUID(), kind: "system", message: "Shop data updated", at: Date.now(), read: false };
+}
 
 function loadFirebase() {
   return import("./firebase");
@@ -76,6 +113,8 @@ type GoApi = {
   google: () => Promise<FbUser>;
   googleAccount: FbUser | null;
   directory: { owners: { id: string; name: string; email: string; shopIds: string[] }[]; shops: ShopBlob[] } | null;
+  notifications: GoNotification[];
+  markNotificationsRead: () => void;
 };
 
 const GoContext = createContext<GoApi | null>(null);
@@ -101,7 +140,10 @@ export function GoProvider({ children }: { children: ReactNode }) {
   const [googleAccount, setGoogleAccount] = useState<FbUser | null>(null);
   const [directory, setDirectory] = useState<{ owners: { id: string; name: string; email: string; shopIds: string[] }[]; shops: ShopBlob[] } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [notifications, setNotifications] = useState<GoNotification[]>([]);
   const pending = useRef(0);
+  const remoteShopsRef = useRef(new Map<string, ShopBlob>());
+  const platformSnapshotRef = useRef<{ owners: number; shops: number } | null>(null);
   const blobsRef = useRef(blobs);
   blobsRef.current = blobs;
   const sessionRef = useRef(session);
@@ -126,6 +168,28 @@ export function GoProvider({ children }: { children: ReactNode }) {
     }
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    remoteShopsRef.current.clear();
+    platformSnapshotRef.current = null;
+    if (!session) {
+      setNotifications([]);
+      return;
+    }
+    try {
+      const key = notificationKey(session);
+      const raw = localStorage.getItem(NOTIFY_DATA_KEY);
+      const data = raw ? (JSON.parse(raw) as Record<string, GoNotification[]>) : {};
+      const saved = key ? data[key] ?? [] : [];
+      const readRaw = localStorage.getItem(NOTIFY_READ_KEY);
+      const readMap = readRaw ? (JSON.parse(readRaw) as Record<string, string[]>) : {};
+      const readIds = new Set(readMap[key] ?? []);
+      setNotifications(saved.map((n) => ({ ...n, read: readIds.has(n.id) || n.read })));
+    } catch {
+      setNotifications([]);
+    }
+  }, [ready, session?.kind, session?.uid, session?.shopId]);
 
   useEffect(() => {
     if (!ready || !config) return;
@@ -221,8 +285,12 @@ export function GoProvider({ children }: { children: ReactNode }) {
           config,
           uid,
           (next) => {
-            if (pending.current > 0) return;
             if (next.length === 0 && blobsRef.current.length > 0) return;
+            for (const blob of next) {
+              const prev = remoteShopsRef.current.get(blob.shop.id);
+              remoteShopsRef.current.set(blob.shop.id, blob);
+              if (prev && pending.current === 0) pushLocalNotification(changeNotification(prev, blob));
+            }
             setBlobs(next);
             setActiveShopId((cur) => (cur && next.some((b) => b.shop.id === cur) ? cur : (next[0]?.shop.id ?? null)));
           },
@@ -232,7 +300,10 @@ export function GoProvider({ children }: { children: ReactNode }) {
         else stop = unsub;
       } else if (shopId) {
         const unsub = (await loadFirebase()).subscribeShop(config, shopId, (blob) => {
-          if (pending.current > 0 || !blob) return;
+          if (!blob) return;
+          const prev = remoteShopsRef.current.get(blob.shop.id);
+          remoteShopsRef.current.set(blob.shop.id, blob);
+          if (prev && pending.current === 0) pushLocalNotification(changeNotification(prev, blob));
           setBlobs([blob]);
           setActiveShopId(blob.shop.id);
         });
@@ -248,17 +319,34 @@ export function GoProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready || session?.kind !== "super" || !config) return;
+    const stop = (void 0);
     let gone = false;
     void (async () => {
       try {
         const fb = await loadFirebase();
-        try {
-          await fb.signInAnon(config);
-        } catch {
-          /* already signed in */
-        }
-        const rows = await fb.listPlatform(config);
-        if (!gone) setDirectory(rows);
+        const unsub = fb.subscribePlatform(
+          config,
+          (rows) => {
+            if (gone) return;
+            const prev = platformSnapshotRef.current;
+            platformSnapshotRef.current = { owners: rows.owners.length, shops: rows.shops.length };
+            if (prev && prev.shops !== rows.shops.length) {
+              pushLocalNotification({
+                id: crypto.randomUUID(),
+                kind: "shop",
+                message: rows.shops.length > prev.shops ? "New shop added to platform" : "Shop removed from platform",
+                at: Date.now(),
+                read: false,
+              });
+            }
+            setDirectory(rows);
+          },
+          (error) => {
+            if (!gone) setNotice(explainFirebase(error));
+          },
+        );
+        if (gone) unsub();
+        else return () => unsub();
       } catch (e) {
         if (!gone) setNotice(explainFirebase(e));
       }
@@ -266,7 +354,49 @@ export function GoProvider({ children }: { children: ReactNode }) {
     return () => {
       gone = true;
     };
-  }, [ready, session, config]);
+  }, [ready, session?.kind, session?.uid, config]);
+
+  useEffect(() => {
+    if (!ready || !session || session.kind === "super" || !config) return;
+    const shopIds = session.kind === "customer"
+      ? [session.shopId]
+      : blobs.map((b) => b.shop.id);
+    if (shopIds.length === 0) return;
+    const unsubs: Array<() => void> = [];
+    void (async () => {
+      const fb = await loadFirebase();
+      for (const shopId of shopIds) {
+        unsubs.push(
+          fb.subscribeNotifications(
+            config,
+            shopId,
+            (rows) => {
+              const key = notificationKey(sessionRef.current);
+              if (!key) return;
+              const readRaw = localStorage.getItem(NOTIFY_READ_KEY);
+              const readMap = readRaw ? (JSON.parse(readRaw) as Record<string, string[]>) : {};
+              const readIds = new Set(readMap[key] ?? []);
+              const merged = rows.map((n) => ({ ...n, read: n.read || readIds.has(n.id) }));
+              setNotifications((current) => {
+                const localOnly = current.filter((n) => !merged.some((m) => m.id === n.id));
+                const next = [...merged, ...localOnly].sort((a, b) => b.at - a.at).slice(0, 30);
+                try {
+                  const dataRaw = localStorage.getItem(NOTIFY_DATA_KEY);
+                  const data = dataRaw ? (JSON.parse(dataRaw) as Record<string, GoNotification[]>) : {};
+                  data[key] = next;
+                  localStorage.setItem(NOTIFY_DATA_KEY, JSON.stringify(data));
+                } catch {}
+                return next;
+              });
+            },
+            (error) => setNotice(explainFirebase(error)),
+          ),
+        );
+      }
+    })();
+    return () => unsubs.forEach((u) => u());
+  }, [ready, session?.kind, session?.uid, session?.shopId, config, blobs.map((b) => b.shop.id).join(",")]);
+
 
   async function commit(shopId: string, recipe: (blob: ShopBlob) => ShopBlob) {
     const current = blobsRef.current.find((b) => b.shop.id === shopId);
@@ -290,6 +420,15 @@ export function GoProvider({ children }: { children: ReactNode }) {
     try {
       const fresh = await (await loadFirebase()).mutateShop(cfg, shopId, recipe);
       setBlobs((curr) => curr.map((b) => (b.shop.id === shopId ? fresh : b)));
+      const event = changeNotification(current, fresh);
+      if (event) {
+        pushLocalNotification(event);
+        try {
+          await (await loadFirebase()).createNotification(cfg, shopId, event);
+        } catch {
+          /* data write succeeded; notification is best-effort */
+        }
+      }
     } catch (e) {
       setBlobs((curr) => curr.map((b) => (b.shop.id === shopId ? current : b)));
       setNotice(explainFirebase(e));
@@ -297,6 +436,22 @@ export function GoProvider({ children }: { children: ReactNode }) {
       pending.current = Math.max(0, pending.current - 1);
       setBusy(false);
     }
+  }
+
+  function pushLocalNotification(notification: GoNotification | null) {
+    if (!notification) return;
+    const key = notificationKey(sessionRef.current);
+    if (!key) return;
+    setNotifications((current) => {
+      const next = [notification, ...current.filter((n) => n.id !== notification.id)].slice(0, 30);
+      try {
+        const raw = localStorage.getItem(NOTIFY_DATA_KEY);
+        const data = raw ? (JSON.parse(raw) as Record<string, GoNotification[]>) : {};
+        data[key] = next;
+        localStorage.setItem(NOTIFY_DATA_KEY, JSON.stringify(data));
+      } catch {}
+      return next;
+    });
   }
 
   const api = useMemo<GoApi>(() => {
@@ -339,9 +494,24 @@ export function GoProvider({ children }: { children: ReactNode }) {
         });
       },
       loginMember: async (username, password) => {
-        if (username.trim() === "229132" && password === "123456") {
-          setSession({ kind: "super", backend: "firebase", name: "Super admin", uid: "super", email: "" });
-          setNotice(null);
+        if (username.trim() === "229132") {
+          const cfg = configRef.current;
+          if (!cfg) {
+            setNotice("@needConfig");
+            return;
+          }
+          setBusy(true);
+          try {
+            const user = await (await loadFirebase()).signInSuper(cfg, password);
+            const next: Session = { kind: "super", backend: "firebase", name: "Super admin", uid: user.uid, email: user.email };
+            sessionRef.current = next;
+            setSession(next);
+            setNotice(null);
+          } catch (e) {
+            setNotice(explainFirebase(e));
+          } finally {
+            setBusy(false);
+          }
           return;
         }
         const parsed = splitMemberUser(username);
@@ -382,24 +552,16 @@ export function GoProvider({ children }: { children: ReactNode }) {
         setBusy(true);
         try {
           const fb = await loadFirebase();
-          // Customer login starts before Firebase has an authenticated user.
-          // Authenticate anonymously first so Firestore rules can allow the
-          // shop-code/shop lookup without making the shop data public.
-          await fb.signInAnon(cfg);
+          const loginId = memberLoginId(code, name);
+          const user = await fb.signInMember(cfg, loginId, password);
           const blob = await fb.shopByCode(cfg, code);
           const customer = blob?.customers.find((c) => c.username === name);
           if (!blob || !customer || customer.passHash !== hash) {
             setNotice("@badLogin");
+            await fb.signOutFirebase(cfg);
             return;
           }
-          const loginId = memberLoginId(blob.shop.code, name);
-          try {
-            const user = await fb.signInMember(cfg, loginId, password);
-            enter(blob, customer, "firebase", user.uid, user.email);
-          } catch {
-            const user = await fb.signInAnon(cfg);
-            enter(blob, customer, "firebase", user.uid, user.email);
-          }
+          enter(blob, customer, "firebase", user.uid, user.email);
         } catch (e) {
           setNotice(explainFirebase(e));
         } finally {
@@ -526,6 +688,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
         pending.current = 0;
         setNotice(null);
         setActiveShopId(null);
+        setNotifications([]);
         sessionStorage.removeItem("go-auth-role");
         sessionStorage.removeItem("go-app-return");
         sessionStorage.removeItem("go-customer-return");
@@ -743,6 +906,25 @@ export function GoProvider({ children }: { children: ReactNode }) {
       },
       googleAccount,
       directory,
+      notifications,
+      markNotificationsRead: () => {
+        const key = notificationKey(sessionRef.current);
+        if (!key) return;
+        setNotifications((current) => {
+          const next = current.map((n) => ({ ...n, read: true }));
+          try {
+            const dataRaw = localStorage.getItem(NOTIFY_DATA_KEY);
+            const data = dataRaw ? (JSON.parse(dataRaw) as Record<string, GoNotification[]>) : {};
+            data[key] = next;
+            localStorage.setItem(NOTIFY_DATA_KEY, JSON.stringify(data));
+            const readRaw = localStorage.getItem(NOTIFY_READ_KEY);
+            const readMap = readRaw ? (JSON.parse(readRaw) as Record<string, string[]>) : {};
+            readMap[key] = next.map((n) => n.id);
+            localStorage.setItem(NOTIFY_READ_KEY, JSON.stringify(readMap));
+          } catch {}
+          return next;
+        });
+      },
     };
     // commit identity changes each render; methods close over latest via refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
