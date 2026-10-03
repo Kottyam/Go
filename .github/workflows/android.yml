@@ -72,6 +72,13 @@ jobs:
         working-directory: android
         run: /tmp/gradle-8.11.1/bin/gradle assembleRelease bundleRelease --no-daemon
 
+      - name: Verify APK signing
+        working-directory: android
+        run: |
+          APK="app/build/outputs/apk/release/app-release.apk"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
