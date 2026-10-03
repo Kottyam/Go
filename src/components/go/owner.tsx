@@ -159,7 +159,7 @@ export function OwnerApp() {
             <LogOut size={18} />
           </button>
         </header>
-        <div className="px-4 py-4 pb-28 md:pb-8">
+        <div className="px-4 py-4 mobile-content-bottom md:pb-8">
           {view === "home" && (
             <HomeView
               onOrder={() => {
