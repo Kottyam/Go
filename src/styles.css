@@ -116,10 +116,10 @@
     box-shadow: 0 1px 0 color-mix(in srgb, var(--color-ink) 4%, transparent);
   }
   .mobile-content-bottom {
-    padding-bottom: calc(5rem + var(--go-system-bottom, 72px));
+    padding-bottom: 5.5rem;
   }
   .dock {
-    bottom: var(--go-system-bottom, 72px);
+    bottom: 0;
     height: 4.25rem;
     padding-bottom: 0;
   }
