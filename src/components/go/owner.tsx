@@ -30,6 +30,7 @@ import {
 } from "@/lib/go/logic";
 import { useGo } from "@/lib/go/store";
 import type { Customer, Item, OrderStatus, PayMethod, ShopKind, WorkMode } from "@/lib/go/types";
+import { NotificationBell } from "./notifications";
 import { OrderPad } from "./order-pad";
 import { Btn, Field, Money, Select, TextInput, shortDate } from "./ui";
 
@@ -96,6 +97,7 @@ export function OwnerApp() {
           <div>
             <p className="brand-mark text-3xl leading-tight text-stamp">{t.brand}</p>
           </div>
+          <NotificationBell />
           <button
             type="button"
             className="grid h-11 w-11 place-items-center rounded-full border border-line"
