@@ -26,7 +26,7 @@ export function Gate() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center overflow-x-hidden px-5 py-8">
+    <main className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col justify-start overflow-y-auto overflow-x-hidden px-5 py-8 pb-32 [scroll-padding-bottom:12rem]">
       <h1 className="brand-mark text-center text-3xl leading-tight text-stamp">{t.brand}</h1>
 
       <Btn
@@ -44,7 +44,7 @@ export function Gate() {
       <p className="my-4 text-center text-xs uppercase tracking-wide text-muted">{t.orWord}</p>
 
       <form
-        className="sheet grid min-w-0 gap-3 p-4"
+        className="sheet grid min-w-0 gap-3 p-4 scroll-mb-40"
         onSubmit={(e) => {
           e.preventDefault();
           void go.loginMember(username, password);
