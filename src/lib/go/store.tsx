@@ -61,6 +61,7 @@ type GoApi = {
   resetDemo: () => void;
   addShop: (input: Omit<Shop, "id" | "code">) => Promise<void>;
   saveItem: (shopId: string, item: Item) => Promise<void>;
+  saveShop: (shopId: string, patch: Partial<Shop>) => Promise<void>;
   saveCustomer: (shopId: string, customer: Customer, password?: string) => Promise<void>;
   changePassword: (password: string) => Promise<void>;
   resetMemberPassword: (shopId: string, customerId: string) => Promise<void>;
@@ -554,6 +555,12 @@ export function GoProvider({ children }: { children: ReactNode }) {
         }
       },
       saveItem: (shopId, item) => commit(shopId, (b) => recipeUpsertItem(b, item)),
+      saveShop: (shopId, patch) =>
+        commit(shopId, (b) => ({
+          ...b,
+          rev: b.rev + 1,
+          shop: { ...b.shop, ...patch },
+        })),
       saveCustomer: async (shopId, customer, password) => {
         const shop = blobsRef.current.find((b) => b.shop.id === shopId);
         if (!shop) {
