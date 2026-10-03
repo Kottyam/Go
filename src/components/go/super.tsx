@@ -73,7 +73,7 @@ export function SuperApp() {
             Create shop
           </Btn>
         </section>
-        {owners.length === 0 && <p className="text-sm text-muted">{t.noPeople}</p>
+        {owners.length === 0 && <p className="text-sm text-muted">{t.noPeople}</p>}
         {owners.map((owner) => {
           const mine = shops.filter((s) => owner.shopIds.includes(s.shop.id) || s.ownerUid === owner.id);
           return (
