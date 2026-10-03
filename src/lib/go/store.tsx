@@ -365,6 +365,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
             shopId: blob.shop.id,
             customerId: customer.id,
           });
+          setNotice(null);
         };
         const demo = blobsRef.current.length ? blobsRef.current : loadDemo();
         const local = demo.find((b) => b.shop.code.toUpperCase() === code);
@@ -432,6 +433,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
           setBlobs([]);
           setActiveShopId(null);
           setSession(next);
+          setNotice(null);
         } catch (e) {
           setNotice(explainFirebase(e));
           throw e;
