@@ -60,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
             view.setBackgroundColor(0xFFFFFFFF);
-            view.post(() -> view.evaluateJavascript(
+            view.post(() -> webView.evaluateJavascript(
                     "(function(){document.documentElement.style.setProperty('--go-system-bottom','" + bars.bottom + "px');})();",
                     null
             ));
