@@ -117,11 +117,11 @@
   }
   .mobile-content-bottom {
     /* Keep the last form/button clear of the fixed mobile dock. */
-    padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(11rem + env(safe-area-inset-bottom));
   }
   .dock {
     bottom: 0;
-    height: calc(4.75rem + env(safe-area-inset-bottom));
+    height: calc(5rem + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
