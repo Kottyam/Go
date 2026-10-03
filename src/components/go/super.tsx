@@ -1,6 +1,7 @@
 import { LogOut } from "lucide-react";
 import { serviceText, useI18n } from "@/lib/go/i18n";
 import { useGo } from "@/lib/go/store";
+import { NotificationBell } from "./notifications";
 import { Btn } from "./ui";
 
 export function SuperApp() {
@@ -18,6 +19,7 @@ export function SuperApp() {
           <p className="font-semibold">{t.superTitle}</p>
           <p className="truncate text-xs text-muted">{t.superLead}</p>
         </div>
+        <NotificationBell />
         <button type="button" className="grid h-11 w-11 place-items-center rounded-full border border-line" onClick={() => void go.signOut()} aria-label={t.out}>
           <LogOut size={18} />
         </button>
