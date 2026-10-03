@@ -3,20 +3,60 @@ import type { FirebaseConfig } from "./types";
 export const FIRESTORE_RULES = `rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function superAdmin() {
+      return signedIn()
+        && request.auth.token.email == 'superadmin@go1729.app'
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+    function ownerOfShop(id) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/goShops/$(id))
+        && get(/databases/$(database)/documents/goShops/$(id)).data.ownerUid == request.auth.uid;
+    }
+    function memberOfShop(id) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/goMembers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/goMembers/$(request.auth.uid)).data.shopId == id;
+    }
+
     match /goShops/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if superAdmin() || ownerOfShop(id) || memberOfShop(id);
+      allow create: if superAdmin() || (signedIn() && request.resource.data.ownerUid == request.auth.uid);
+      allow update, delete: if superAdmin() || ownerOfShop(id);
     }
+
     match /goOwners/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == id;
+      allow read, write: if superAdmin() || (signedIn() && request.auth.uid == id);
     }
+
     match /goCodes/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if superAdmin()
+        || ownerOfShop(resource.data.shopId)
+        || memberOfShop(resource.data.shopId);
+      allow write: if superAdmin()
+        || (signedIn() && request.resource.data.shopId != null && ownerOfShop(request.resource.data.shopId));
     }
+
     match /goMembers/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == id;
+      allow read: if superAdmin()
+        || (signedIn() && request.auth.uid == id)
+        || (signedIn() && resource.data.shopId != null && ownerOfShop(resource.data.shopId));
+      allow create, update: if superAdmin()
+        || (signedIn() && request.auth.uid == id);
+      allow delete: if superAdmin() || (signedIn() && request.auth.uid == id);
+    }
+
+    match /goNotifications/{shopId}/{notificationId} {
+      allow read: if superAdmin() || ownerOfShop(shopId) || memberOfShop(shopId);
+      allow create: if superAdmin() || ownerOfShop(shopId);
+      allow update, delete: if superAdmin() || ownerOfShop(shopId);
     }
   }
 }`;
+
 
 export const FIREBASE_PROJECT = "go-1729-b9fc3";
 
