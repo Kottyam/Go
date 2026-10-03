@@ -14,6 +14,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -57,25 +59,30 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setNavigationBarColor(0xFFFFFFFF);
-        getWindow().getDecorView().setSystemUiVisibility(
-                getWindow().getDecorView().getSystemUiVisibility() & ~android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-        );
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             getWindow().getDecorView().setSystemUiVisibility(
-                    getWindow().getDecorView().getSystemUiVisibility() | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                    getWindow().getDecorView().getSystemUiVisibility()
+                            | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                            | android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             );
         }
+
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(0xFFFFFFFF);
         webView = new WebView(this);
-        setContentView(webView);
-        ViewCompat.setOnApplyWindowInsetsListener(webView, (view, insets) -> {
-            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
-            view.setBackgroundColor(0xFFFFFFFF);
-            view.post(() -> webView.evaluateJavascript(
-                    "(function(){document.documentElement.style.setProperty('--go-system-bottom','" + bars.bottom + "px');})();",
-                    null
-            ));
-            return WindowInsetsCompat.CONSUMED;
+        webView.setBackgroundColor(0xFFFFFFFF);
+        root.addView(webView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        setContentView(root);
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            Insets bars = insets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
+            );
+            root.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return insets;
         });
 
         WebSettings settings = webView.getSettings();
