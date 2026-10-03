@@ -189,7 +189,7 @@ export function phoneDigits(phone: string) {
 
 export function nextShopMemberNo(customers: { username?: string }[]) {
   const nums = customers.map((c) => Number(c.username)).filter((n) => Number.isInteger(n) && n > 0);
-  return String((nums.length ? Math.max(...nums) : 0) + 1);
+  return String((nums.length ? Math.max(...nums) : 0) + 1).padStart(3, "0");
 }
 
 export function memberLoginId(shopCode: string, username: string) {
@@ -202,9 +202,28 @@ export function memberUser(shopCode: string, username: string) {
 
 export function splitMemberUser(raw: string) {
   const s = raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const hit = s.match(/^(GO\d{4})(\d+)$/);
+  const hit = s.match(/^(GO\d{4})(\d{1,3})$/);
   if (!hit) return null;
-  return { code: hit[1], no: String(Number(hit[2])) };
+  return { code: hit[1], no: hit[2].padStart(3, "0") };
+}
+
+export function upiPayUrl(upi: string, name: string, amount: number, note = "Go Service payment") {
+  const pa = upi.trim();
+  if (!pa || amount <= 0) return "";
+  const params = new URLSearchParams({
+    pa,
+    pn: name.trim() || "Business",
+    am: amount.toFixed(2),
+    cu: "INR",
+    tn: note,
+  });
+  return "upi://pay?" + params.toString();
+}
+
+export function whatsappBillUrl(phone: string, message: string) {
+  const digits = phone.replace(/\D/g, "");
+  const intl = digits.length === 10 ? "91" + digits : digits.replace(/^00/, "");
+  return intl ? `https://wa.me/${intl}?text=${encodeURIComponent(message)}` : `https://wa.me/?text=${encodeURIComponent(message)}`;
 }
 
 export function emptyBlob(shop: Shop, ownerUid: string): ShopBlob {
