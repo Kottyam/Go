@@ -59,6 +59,11 @@ public class MainActivity extends AppCompatActivity {
         ViewCompat.setOnApplyWindowInsetsListener(webView, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            view.setBackgroundColor(0xFFFFFFFF);
+            view.post(() -> view.evaluateJavascript(
+                    "(function(){document.documentElement.style.setProperty('--go-system-bottom','" + bars.bottom + "px');})();",
+                    null
+            ));
             return WindowInsetsCompat.CONSUMED;
         });
 
