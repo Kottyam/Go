@@ -97,6 +97,7 @@ type GoApi = {
   signOut: () => Promise<void>;
   resetDemo: () => void;
   addShop: (input: Omit<Shop, "id" | "code">) => Promise<void>;
+  addShopAsSuper: (input: Omit<Shop, "id" | "code">) => Promise<void>;
   saveItem: (shopId: string, item: Item) => Promise<void>;
   saveShop: (shopId: string, patch: Partial<Shop>) => Promise<void>;
   saveCustomer: (shopId: string, customer: Customer, password?: string) => Promise<void>;
@@ -733,6 +734,39 @@ export function GoProvider({ children }: { children: ReactNode }) {
           setNotice(explainFirebase(e));
         } finally {
           pending.current = Math.max(0, pending.current - 1);
+          setBusy(false);
+        }
+      },
+      addShopAsSuper: async (input) => {
+        const live = sessionRef.current;
+        const cfg = configRef.current;
+        if (!live || live.kind !== "super" || live.backend !== "firebase" || !cfg) return;
+        const existingCodes = [
+          ...blobsRef.current.map((b) => b.shop.code),
+          ...(directory?.shops ?? []).map((b) => b.shop.code),
+        ];
+        const shop: Shop = {
+          ...input,
+          id: crypto.randomUUID(),
+          code: shopCode(existingCodes),
+        };
+        const blob = emptyBlob(shop, live.uid);
+        setBusy(true);
+        try {
+          await (await loadFirebase()).createShop(cfg, live.uid, blob, live.name, live.email);
+          setDirectory((current) => current
+            ? { ...current, shops: [...current.shops, blob] }
+            : current);
+          pushLocalNotification({
+            id: crypto.randomUUID(),
+            kind: "shop",
+            message: "New shop added to platform",
+            at: Date.now(),
+            read: false,
+          });
+        } catch (e) {
+          setNotice(explainFirebase(e));
+        } finally {
           setBusy(false);
         }
       },
