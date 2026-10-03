@@ -3,7 +3,7 @@ import { CustomerApp } from "./customer";
 import { Gate } from "./gate";
 import { OwnerApp } from "./owner";
 import { SuperApp } from "./super";
-import { LangSelect, noticeText, useI18n } from "@/lib/go/i18n";
+import { LangSelect, useI18n } from "@/lib/go/i18n";
 import { useGo } from "@/lib/go/store";
 
 function Splash() {
@@ -20,7 +20,7 @@ function Splash() {
 
 export function Shell() {
   const go = useGo();
-  const { lang, t } = useI18n();
+  const { t } = useI18n();
   const [hold, setHold] = useState(true);
   useEffect(() => {
     const id = window.setTimeout(() => setHold(false), 1200);
@@ -29,16 +29,6 @@ export function Shell() {
   if (!go.ready || hold) return <Splash />;
   return (
     <div className={`min-w-0 overflow-x-hidden ${go.session ? "" : "flex min-h-dvh flex-col"}`}>
-      {go.notice && go.session && (
-        <div className="no-print border-b border-line bg-due-bg px-4 py-3 text-sm text-due">
-          <div className="mx-auto flex max-w-5xl items-start justify-between gap-3">
-            <p className="min-w-0 break-words">{noticeText(lang, go.notice)}</p>
-            <button type="button" className="min-h-11 shrink-0 font-semibold" onClick={go.clearNotice}>
-              {t.ok}
-            </button>
-          </div>
-        </div>
-      )}
       {!go.session && (
         <div className="no-print flex w-full justify-end px-4 pt-3" style={{ paddingRight: "max(1rem, env(safe-area-inset-right))" }}>
           <LangSelect />
