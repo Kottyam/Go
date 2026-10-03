@@ -28,6 +28,7 @@ export type Shop = {
   phone: string;
   address: string;
   upi: string;
+  gstin?: string;
   code: string;
 };
 
