@@ -135,6 +135,14 @@ export type FirebaseConfig = {
   messagingSenderId?: string;
 };
 
+export type GoNotification = {
+  id: string;
+  kind: "order" | "payment" | "customer" | "item" | "shop" | "system";
+  message: string;
+  at: number;
+  read: boolean;
+};
+
 export type Session =
   | {
       kind: "owner";
