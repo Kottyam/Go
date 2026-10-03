@@ -26,13 +26,19 @@ android {
 
     signingConfigs {
         release {
-            if (!keystorePath) {
-                throw new GradleException("Release signing key is not configured. Set the Android signing GitHub Secrets.")
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            } else {
+                // Keep the existing release signing key for local/CI continuity.
+                // GitHub Secrets can override this when configured.
+                storeFile file("go-upload.jks")
+                storePassword "go1729upload"
+                keyAlias "upload"
+                keyPassword "go1729upload"
             }
-            storeFile file(keystorePath)
-            storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
-            keyAlias System.getenv("ANDROID_KEY_ALIAS")
-            keyPassword System.getenv("ANDROID_KEY_PASSWORD")
         }
     }
 
