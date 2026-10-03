@@ -1,6 +1,7 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, getRedirectResult, onAuthStateChanged, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signInWithCredential, signInAnonymously, signOut, updatePassword } from "firebase/auth";
 import {
+  addDoc,
   arrayRemove,
   arrayUnion,
   collection,
@@ -10,13 +11,16 @@ import {
   getDocs,
   getFirestore,
   onSnapshot,
+  orderBy,
+  query,
+  limit,
   runTransaction,
   setDoc,
   type Firestore,
 } from "firebase/firestore";
 import type { FbUser } from "./config";
 import { memberEmail } from "./logic";
-import type { FirebaseConfig, ShopBlob } from "./types";
+import type { FirebaseConfig, GoNotification, ShopBlob } from "./types";
 
 const apps = new Map<string, FirebaseApp>();
 
@@ -147,6 +151,21 @@ function provisionApp(config: FirebaseConfig) {
   );
   apps.set(key, app);
   return app;
+}
+
+export const SUPER_ADMIN_EMAIL = "superadmin@go1729.app";
+
+export async function signInSuper(config: FirebaseConfig, password: string): Promise<FbUser> {
+  const auth = getAuth(appFor(config));
+  try {
+    const cred = await signInWithEmailAndPassword(auth, SUPER_ADMIN_EMAIL, password);
+    return toUser(cred.user);
+  } catch (e) {
+    const code = typeof e === "object" && e && "code" in e ? String((e as { code: string }).code) : "";
+    if (!code.includes("user-not-found")) throw e;
+    const cred = await createUserWithEmailAndPassword(auth, SUPER_ADMIN_EMAIL, password);
+    return toUser(cred.user);
+  }
 }
 
 export async function signInMember(config: FirebaseConfig, username: string, password: string): Promise<FbUser> {
@@ -343,6 +362,71 @@ export function subscribeOwner(
     unsub();
     stopShops();
   };
+}
+
+export function subscribePlatform(
+  config: FirebaseConfig,
+  cb: (directory: { owners: { id: string; name: string; email: string; shopIds: string[] }[]; shops: ShopBlob[] }) => void,
+  onError?: (error: unknown) => void,
+) {
+  const db = dbFor(config);
+  let owners: { id: string; name: string; email: string; shopIds: string[] }[] = [];
+  let shops: ShopBlob[] = [];
+  let ownersReady = false;
+  let shopsReady = false;
+  const emit = () => {
+    if (ownersReady && shopsReady) cb({ owners, shops });
+  };
+  const stopOwners = onSnapshot(
+    collection(db, "goOwners"),
+    (snap) => {
+      owners = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          name: String(data.name || ""),
+          email: String(data.email || ""),
+          shopIds: ((data.shopIds as string[]) ?? []).filter(Boolean),
+        };
+      });
+      ownersReady = true;
+      emit();
+    },
+    (error) => onError?.(error),
+  );
+  const stopShops = onSnapshot(
+    collection(db, "goShops"),
+    (snap) => {
+      shops = snap.docs.map((d) => d.data() as ShopBlob);
+      shopsReady = true;
+      emit();
+    },
+    (error) => onError?.(error),
+  );
+  return () => {
+    stopOwners();
+    stopShops();
+  };
+}
+
+export async function createNotification(config: FirebaseConfig, shopId: string, notification: GoNotification) {
+  const db = dbFor(config);
+  await setDoc(doc(db, "goNotifications", shopId, "events", notification.id), plain(notification));
+}
+
+export function subscribeNotifications(
+  config: FirebaseConfig,
+  shopId: string,
+  cb: (notifications: GoNotification[]) => void,
+  onError?: (error: unknown) => void,
+) {
+  const db = dbFor(config);
+  const q = query(collection(db, "goNotifications", shopId, "events"), orderBy("at", "desc"), limit(30));
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => d.data() as GoNotification)),
+    (error) => onError?.(error),
+  );
 }
 
 export function subscribeShop(config: FirebaseConfig, shopId: string, cb: (blob: ShopBlob | null) => void) {
