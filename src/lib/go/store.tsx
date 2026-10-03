@@ -558,7 +558,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
           const user = await fb.signInMember(cfg, loginId, password);
           const blob = await fb.shopByCode(cfg, code);
           const customer = blob?.customers.find((c) => c.username === name);
-          if (!blob || !customer || customer.passHash !== hash) {
+          if (!blob || !customer) {
             setNotice("@badLogin");
             await fb.signOutFirebase(cfg);
             return;
@@ -897,6 +897,10 @@ export function GoProvider({ children }: { children: ReactNode }) {
             setNotice(explainFirebase(e));
             return;
           }
+        }
+        if (live.backend === "firebase") {
+          setNotice("@passChanged");
+          return;
         }
         const hash = await passHash(password.trim());
         await commit(live.shopId, (b) => {
