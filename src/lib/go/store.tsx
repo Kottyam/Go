@@ -319,8 +319,8 @@ export function GoProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready || session?.kind !== "super" || !config) return;
-    const stop = (void 0);
     let gone = false;
+    let stop = () => {};
     void (async () => {
       try {
         const fb = await loadFirebase();
@@ -346,13 +346,14 @@ export function GoProvider({ children }: { children: ReactNode }) {
           },
         );
         if (gone) unsub();
-        else return () => unsub();
+        else stop = unsub;
       } catch (e) {
         if (!gone) setNotice(explainFirebase(e));
       }
     })();
     return () => {
       gone = true;
+      stop();
     };
   }, [ready, session?.kind, session?.uid, config]);
 
