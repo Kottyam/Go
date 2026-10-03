@@ -130,15 +130,15 @@ export function OwnerApp() {
         </nav>
       </aside>
       <div className="min-w-0">
-        <header className="no-print sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-line bg-paper px-3 py-2">
+        <header className="no-print sticky top-0 z-10 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-b border-line bg-paper px-3 py-2">
           <div className="min-w-0 flex-1 basis-40">
             <p className="truncate font-semibold">{shop?.shop.name ?? t.noShop}</p>
             <p className="truncate text-xs text-muted">{shop ? serviceText(lang, shop.shop) : t.pickService}</p>
           </div>
-          <LangSelect />
+          <div className="min-w-0 max-w-[7.5rem]"><LangSelect /></div>
           {go.blobs.length > 1 && (
             <select
-              className="field max-w-28 min-w-0"
+              className="field w-24 min-w-0 max-w-24"
               value={shop?.shop.id ?? ""}
               onChange={(e) => go.setActiveShop(e.target.value)}
               aria-label={t.shop}
