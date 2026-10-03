@@ -25,13 +25,15 @@ import {
   shiftMonth,
   todayISO,
   memberUser,
+  upiPayUrl,
+  whatsappBillUrl,
 } from "@/lib/go/logic";
 import { useGo } from "@/lib/go/store";
 import type { Customer, Item, OrderStatus, PayMethod, ShopKind, WorkMode } from "@/lib/go/types";
 import { OrderPad } from "./order-pad";
 import { Btn, Field, Money, Select, TextInput, shortDate } from "./ui";
 
-type View = "home" | "orders" | "bills" | "routes" | "more" | "people" | "items" | "sales" | "shops" | "settings" | "passes" | "round";
+type View = "home" | "orders" | "bills" | "routes" | "more" | "people" | "items" | "sales" | "financial" | "shops" | "settings" | "passes" | "round";
 
 function dockLabel(t: Copy, id: View) {
   if (id === "home") return t.home;
@@ -42,6 +44,7 @@ function dockLabel(t: Copy, id: View) {
   if (id === "routes") return t.routes;
   if (id === "people") return t.customers;
   if (id === "items") return t.items;
+  if (id === "financial") return "Financial PDF";
   return t.more;
 }
 
@@ -84,7 +87,7 @@ export function OwnerApp() {
       { id: "more" as View, icon: Settings },
     ];
   }, [work]);
-  const moreOn = view === "more" || view === "settings" || view === "shops" || view === "sales";
+  const moreOn = view === "more" || view === "settings" || view === "shops" || view === "sales" || view === "financial";
 
   if (go.blobs.length === 0) {
     return (
@@ -121,6 +124,7 @@ export function OwnerApp() {
             <NavBtn key={d.id} active={view === d.id} label={dockLabel(t, d.id)} onClick={() => setView(d.id)} />
           ))}
           <NavBtn active={view === "sales"} label={t.sales} onClick={() => setView("sales")} />
+          <NavBtn active={view === "financial"} label="Financial PDF" onClick={() => setView("financial")} />
           <NavBtn active={view === "shops"} label={t.shops} onClick={() => setView("shops")} />
           <NavBtn active={view === "settings"} label={t.settings} onClick={() => setView("settings")} />
         </nav>
@@ -175,6 +179,7 @@ export function OwnerApp() {
           {view === "people" && <PeopleView />}
           {view === "items" && <ItemsView />}
           {view === "sales" && <SalesView />}
+          {view === "financial" && <FinancialReportView />}
           {view === "shops" && <ShopsView />}
           {view === "settings" && <SettingsView />}
         </div>
@@ -696,7 +701,21 @@ function BillsView() {
                 </li>
               ))}
           </ul>
-          {shop.shop.upi && <p className="mt-3 text-sm">UPI: {shop.shop.upi}</p>}
+          {shop.shop.upi && (
+            <div className="mt-3 grid gap-2 text-sm">
+              <p>UPI: {shop.shop.upi}</p>
+              <div className="no-print flex flex-wrap gap-2">
+                <Btn tone="stamp" onClick={() => { const url = upiPayUrl(shop.shop.upi, shop.shop.name, open.bill.due, `Bill ${month}`); if (url) window.location.href = url; }} disabled={open.bill.due <= 0}>
+                  Pay via UPI
+                </Btn>
+                <Btn tone="ghost" onClick={() => void navigator.clipboard?.writeText(shop.shop.upi)}>Copy UPI ID</Btn>
+                <Btn tone="ghost" onClick={() => {
+                  const message = `Hello ${open.c.name}, your ${monthText(lang, month)} bill from ${shop.shop.name} is ${inr(open.bill.sales)}. Paid ${inr(open.bill.collected)}. Balance ${inr(open.bill.due)}. UPI: ${shop.shop.upi}`;
+                  window.open(whatsappBillUrl(open.c.phone, message), "_blank", "noopener,noreferrer");
+                }}>Send Bill on WhatsApp</Btn>
+              </div>
+            </div>
+          )}
           <div className="no-print mt-4 grid gap-2 border-t border-line pt-4">
             <h4 className="font-semibold">{t.recordPay}</h4>
             <div className="grid grid-cols-2 gap-2">
@@ -1179,6 +1198,64 @@ function SalesView() {
   );
 }
 
+function FinancialReportView() {
+  const go = useGo();
+  const { lang, t } = useI18n();
+  const shop = go.active;
+  const [month, setMonth] = useState(monthKey());
+  if (!shop) return null;
+  const orders = shop.orders.filter((o) => o.date.startsWith(month) && o.status !== "cancelled");
+  const sales = orders.reduce((s, o) => s + orderTotal(o), 0);
+  const credit = orders.filter((o) => o.mode === "credit").reduce((s, o) => s + orderTotal(o), 0);
+  const cash = orders.filter((o) => o.mode === "cash").reduce((s, o) => s + orderTotal(o), 0);
+  const collections = shop.payments.filter((p) => p.date.startsWith(month)).reduce((s, p) => s + p.amount, 0);
+  const outstanding = shop.customers.reduce((s, c) => s + Math.max(0, balance(c.id, shop.orders, shop.payments)), 0);
+  const paymentByMethod = (["cash", "upi", "bank"] as PayMethod[]).map((method) => ({
+    method,
+    amount: shop.payments.filter((p) => p.date.startsWith(month) && p.method === method).reduce((s, p) => s + p.amount, 0),
+  }));
+  return (
+    <div className="grid gap-4">
+      <div className="flex items-center justify-between gap-2">
+        <Btn tone="ghost" onClick={() => setMonth(shiftMonth(month, -1))}>{t.prev}</Btn>
+        <h2 className="font-display text-xl">Financial Report · {monthText(lang, month)}</h2>
+        <Btn tone="ghost" onClick={() => setMonth(shiftMonth(month, 1))}>{t.next}</Btn>
+      </div>
+      <section className="print-sheet sheet grid gap-4 p-5">
+        <div>
+          <p className="text-xl font-semibold">{shop.shop.name}</p>
+          <p className="text-sm text-muted">{serviceText(lang, shop.shop)} · {shop.shop.code}</p>
+          {shop.shop.gstin && <p className="text-sm text-muted">GSTIN: {shop.shop.gstin}</p>}
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <Metric label="Orders" value={String(orders.length)} />
+          <Metric label="Sales" value={inr(sales)} />
+          <Metric label="Credit sales" value={inr(credit)} />
+          <Metric label="Cash sales" value={inr(cash)} />
+          <Metric label="Collections" value={inr(collections)} />
+          <Metric label="Outstanding" value={inr(outstanding)} />
+        </div>
+        <section className="grid gap-2 text-sm">
+          <h3 className="font-semibold">Collections by method</h3>
+          {paymentByMethod.map((row) => <Row key={row.method} k={payText(t, row.method)} v={inr(row.amount)} />)}
+        </section>
+        <p className="text-xs leading-5 text-muted">Accounting summary generated from orders and recorded payments. Use your accountant/CA for GST/tax filing and final classification.</p>
+      </section>
+      <div className="no-print flex flex-wrap gap-2">
+        <Btn tone="stamp" onClick={() => window.print()}><Printer size={15} /> Generate / Save PDF</Btn>
+      </div>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return <div className="sheet p-3"><p className="text-xs text-muted">{label}</p><p className="mt-1 text-lg font-semibold break-words">{value}</p></div>;
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return <div className="flex items-baseline justify-between gap-3"><span className="text-muted">{k}</span><span>{v}</span></div>;
+}
+
 function ShopsView() {
   const go = useGo();
   const { lang, t } = useI18n();
@@ -1313,12 +1390,27 @@ function SettingsView() {
   const [sure, setSure] = useState(false);
   const who = go.session?.uid === "demo-owner" ? t.demoOwnerName : go.session?.name;
   const shop = go.active;
+  const [upi, setUpi] = useState(shop?.shop.upi ?? "");
+  const [gstin, setGstin] = useState(shop?.shop.gstin ?? "");
+  useEffect(() => {
+    setUpi(shop?.shop.upi ?? "");
+    setGstin(shop?.shop.gstin ?? "");
+  }, [shop?.shop.id, shop?.shop.upi, shop?.shop.gstin]);
   return (
     <div className="grid gap-4">
       <h2 className="font-semibold">{t.settings}</h2>
       <section className="sheet p-4">
         <p className="text-sm text-muted">{t.signedIn}</p>
         <p className="mt-1 break-all font-medium">{go.session?.email || who}</p>
+      </section>
+      <section className="sheet grid gap-3 p-4">
+        <h3 className="font-medium">Payments & tax profile</h3>
+        <Field label="UPI ID"><TextInput value={upi} onChange={(e) => setUpi(e.target.value)} placeholder="business@upi" /></Field>
+        <Field label="GSTIN (optional)"><TextInput value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} placeholder="15-character GSTIN" /></Field>
+        <Btn tone="stamp" disabled={!shop || go.busy} onClick={() => { if (shop) void go.saveShop(shop.shop.id, { upi: upi.trim(), gstin: gstin.trim() || undefined }); }}>
+          Save payment details
+        </Btn>
+        <p className="text-xs leading-5 text-muted">Monthly PDF is an accounting summary for your records/CA; it is not itself a GST return.</p>
       </section>
       <section className="sheet p-4">
         <h3 className="mb-3 font-medium">{t.language}</h3>
