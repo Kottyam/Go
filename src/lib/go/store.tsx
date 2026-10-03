@@ -516,18 +516,30 @@ export function GoProvider({ children }: { children: ReactNode }) {
       signOut: async () => {
         const live = sessionRef.current;
         const cfg = configRef.current;
+
+        // Clear the UI session even if Firebase sign-out is slow or fails.
+        // This guarantees that logout immediately returns to the login gate.
+        sessionRef.current = null;
+        setSession(null);
+        setGoogleAccount(null);
+        setBusy(false);
+        pending.current = 0;
+        setNotice(null);
+        setActiveShopId(null);
+        sessionStorage.removeItem("go-auth-role");
+        sessionStorage.removeItem("go-app-return");
+        sessionStorage.removeItem("go-customer-return");
+
         if (live?.backend === "firebase" && cfg) {
           try {
             await (await loadFirebase()).signOutFirebase(cfg);
           } catch {
-            /* still leave the local session */
+            /* local logout is already complete */
           }
         }
+
         const demo = loadDemo();
-        setSession(null);
-        setGoogleAccount(null);
         setBlobs(demo);
-        setActiveShopId(demo[0]?.shop.id ?? null);
       },
       resetDemo: () => {
         const demo = seed();
