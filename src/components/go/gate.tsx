@@ -67,6 +67,12 @@ export function Gate() {
           {t.memberIn}
         </Btn>
       </form>
+
+      {go.notice && (
+        <p className="mt-3 rounded-xl border border-due bg-due-bg px-4 py-3 text-sm leading-5 text-due" role="alert">
+          {go.notice.startsWith("@") ? go.notice : go.notice}
+        </p>
+      )}
     </main>
   );
 }
