@@ -26,7 +26,7 @@ export function CustomerApp() {
       </main>
     );
   }
-  if (customer.mustChangePass) {
+  if (customer.mustChangePass && session.backend === "demo") {
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-8">
         <div className="mb-6 flex items-center justify-between">
