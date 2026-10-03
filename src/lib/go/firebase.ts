@@ -1,7 +1,6 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, getRedirectResult, onAuthStateChanged, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signInWithCredential, signInAnonymously, signOut, updatePassword } from "firebase/auth";
 import {
-  addDoc,
   arrayRemove,
   arrayUnion,
   collection,
