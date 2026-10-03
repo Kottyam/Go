@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { LogOut } from "lucide-react";
 import { monthText, useI18n } from "@/lib/go/i18n";
-import { billFor, inr, monthKey, orderTotal, passDue, qtyText, shiftMonth, todayISO } from "@/lib/go/logic";
+import { billFor, inr, monthKey, orderTotal, passDue, qtyText, shiftMonth, todayISO, upiPayUrl } from "@/lib/go/logic";
 import { useGo } from "@/lib/go/store";
 import { Btn, Field, Money, shortDate, TextInput } from "./ui";
 
@@ -73,6 +73,18 @@ export function CustomerApp() {
         </button>
       </header>
       <div className="grid gap-4 px-4 py-4 pb-10">
+        {work === "order" && shown > 0 && shop.shop.upi && (
+          <section className="sheet grid gap-2 p-4">
+            <p className="text-sm text-muted">Payment</p>
+            <p className="font-semibold">{inr(shown)}</p>
+            <div className="flex flex-wrap gap-2">
+              <Btn tone="stamp" onClick={() => { const url = upiPayUrl(shop.shop.upi, shop.shop.name, shown, `Go Service bill ${month}`); if (url) window.location.href = url; }}>
+                Pay via UPI
+              </Btn>
+              <Btn tone="ghost" onClick={() => void navigator.clipboard?.writeText(shop.shop.upi)}>Copy UPI ID</Btn>
+            </div>
+          </section>
+        )}
         <div className="sheet p-4">
           <p className="text-sm text-muted">{work === "fixed" ? t.workFixed : work === "daily" ? t.workDaily : t.workOrder}</p>
           <p className="text-3xl">
