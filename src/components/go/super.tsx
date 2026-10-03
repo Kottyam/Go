@@ -1,8 +1,9 @@
-import { LogOut } from "lucide-react";
+import { LogOut, Plus } from "lucide-react";
 import { serviceText, useI18n } from "@/lib/go/i18n";
+import { useState } from "react";
 import { useGo } from "@/lib/go/store";
 import { NotificationBell } from "./notifications";
-import { Btn } from "./ui";
+import { Btn, Field, Select, TextInput } from "./ui";
 
 export function SuperApp() {
   const go = useGo();
@@ -12,6 +13,9 @@ export function SuperApp() {
   const totalCustomers = shops.reduce((n, b) => n + b.customers.length, 0);
   const totalOrders = shops.reduce((n, b) => n + b.orders.length, 0);
   const totalCollected = shops.reduce((n, b) => n + b.payments.reduce((s, p) => s + p.amount, 0), 0);
+  const [shopName, setShopName] = useState("");
+  const [serviceName, setServiceName] = useState("");
+  const [work, setWork] = useState<"order" | "fixed" | "daily">("order");
   return (
     <div className="mx-auto min-h-screen w-full min-w-0 max-w-3xl overflow-x-hidden">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-paper px-4 py-3">
@@ -31,7 +35,45 @@ export function SuperApp() {
           <div className="sheet p-3"><p className="text-xs text-muted">Orders</p><p className="text-2xl font-semibold">{totalOrders}</p></div>
           <div className="sheet p-3"><p className="text-xs text-muted">Collections</p><p className="text-lg font-semibold">{new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(totalCollected)}</p></div>
         </section>
-        {owners.length === 0 && <p className="text-sm text-muted">{t.noPeople}</p>}
+        <section className="sheet grid gap-3 p-4">
+          <div className="flex items-center gap-2">
+            <Plus size={17} />
+            <h2 className="font-semibold">Add shop</h2>
+          </div>
+          <Field label="Shop name">
+            <TextInput value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="Example shop" />
+          </Field>
+          <Field label="Service">
+            <TextInput value={serviceName} onChange={(e) => setServiceName(e.target.value)} placeholder="Canteen, bakery, water supply..." />
+          </Field>
+          <Field label="Billing mode">
+            <Select value={work} onChange={(e) => setWork(e.target.value as "order" | "fixed" | "daily")}>
+              <option value="order">Booked delivery</option>
+              <option value="fixed">Month pass</option>
+              <option value="daily">Comes daily</option>
+            </Select>
+          </Field>
+          <Btn
+            tone="stamp"
+            disabled={!shopName.trim() || !serviceName.trim() || go.busy}
+            onClick={() => {
+              void go.addShopAsSuper({
+                name: shopName.trim(),
+                kind: "custom",
+                serviceName: serviceName.trim(),
+                work,
+                phone: "",
+                address: "",
+                upi: "",
+              });
+              setShopName("");
+              setServiceName("");
+            }}
+          >
+            Create shop
+          </Btn>
+        </section>
+        {owners.length === 0 && <p className="text-sm text-muted">{t.noPeople}</p>
         {owners.map((owner) => {
           const mine = shops.filter((s) => owner.shopIds.includes(s.shop.id) || s.ownerUid === owner.id);
           return (
