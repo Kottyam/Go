@@ -76,6 +76,7 @@ export function explainFirebase(e: unknown) {
   if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found") || code.includes("invalid-email")) return "@badLogin";
   if (code.includes("weak-password")) return "@passShort";
   if (code.includes("operation-not-allowed")) return "@emailOff";
+  if (code.includes("admin-restricted-operation")) return "Firebase Authentication is blocking client-side account creation. Existing members can still sign in; new member accounts must be created by an administrator or user sign-up must be enabled.";
   if (code.includes("email-already-in-use")) return "@userTaken";
   if (code.includes("popup-blocked") || code.includes("operation-not-supported")) return "@popupBlocked";
   if (code.includes("popup-closed")) return "@popupClosed";
