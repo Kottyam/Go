@@ -201,10 +201,17 @@ export function memberUser(shopCode: string, username: string) {
 }
 
 export function splitMemberUser(raw: string) {
-  const s = raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const hit = s.match(/^(GO\d{4})(\d{1,3})$/);
+  const input = raw.trim().toUpperCase();
+  const compact = input.replace(/[^A-Z0-9]/g, "");
+  const hit = compact.match(/^(GO\d{4})(\d{1,3})$/);
   if (!hit) return null;
-  return { code: hit[1], no: hit[2].padStart(3, "0") };
+  // Keep the member number exactly as entered. Firebase member accounts are
+  // keyed from the actual customer username (for example GO8143-1), while
+  // newly generated usernames may be zero-padded (for example GO8143-001).
+  // Padding here caused existing accounts such as go8143-1@members.go1729.app
+  // to be looked up as go8143-001@members.go1729.app.
+  const separatorMatch = input.match(/^(GO\d{4})\s*[-_]?\s*(\d{1,3})$/);
+  return { code: hit[1], no: separatorMatch?.[2] ?? hit[2] };
 }
 
 export function upiPayUrl(upi: string, name: string, amount: number, note = "Go Service payment") {
