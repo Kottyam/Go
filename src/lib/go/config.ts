@@ -49,7 +49,11 @@ service cloud.firestore {
       allow delete: if superAdmin() || (signedIn() && request.auth.uid == id);
     }
 
-    match /goNotifications/{shopId}/{notificationId} {
+    match /goCounters/{id} {
+      allow read, write: if superAdmin() || (signedIn() && id == "members");
+    }
+
+    match /goNotifications/{shopId}/events/{notificationId} {
       allow read: if superAdmin() || ownerOfShop(shopId) || memberOfShop(shopId);
       allow create: if superAdmin() || ownerOfShop(shopId);
       allow update, delete: if superAdmin() || ownerOfShop(shopId);
