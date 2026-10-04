@@ -560,9 +560,15 @@ export function GoProvider({ children }: { children: ReactNode }) {
           const fb = await loadFirebase();
           const loginId = memberLoginId(code, name);
           const user = await fb.signInMember(cfg, loginId, password);
-          const blob = await fb.shopByCode(cfg, code);
-          const customer = blob?.customers.find((c) => c.username === name);
-          if (!blob || !customer) {
+          const membership = await fb.readMember(cfg, user.uid);
+          if (!membership || membership.shopId === "") {
+            setNotice("@badLogin");
+            await fb.signOutFirebase(cfg);
+            return;
+          }
+          const blob = await fb.shopById(cfg, membership.shopId);
+          const customer = blob?.customers.find((c) => c.id === membership.customerId && c.username === name);
+          if (!blob || !customer || blob.shop.code.toUpperCase() !== code) {
             setNotice("@badLogin");
             await fb.signOutFirebase(cfg);
             return;
