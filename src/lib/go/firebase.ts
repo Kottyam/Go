@@ -46,8 +46,11 @@ function appFor(config: FirebaseConfig) {
   return app;
 }
 
+// Single place that names the Firestore database used by the whole app.
+const FIRESTORE_DB = "default";
+
 function dbFor(config: FirebaseConfig): Firestore {
-  return getFirestore(appFor(config), "default");
+  return getFirestore(appFor(config), FIRESTORE_DB);
 }
 
 function toUser(user: { uid: string; displayName: string | null; email: string | null }): FbUser {
@@ -191,7 +194,7 @@ export async function provisionMember(
     cred = await signInWithEmailAndPassword(auth, email, password);
   }
   const uid = cred.user.uid;
-  await setDoc(doc(getFirestore(app, "default"), "goMembers", uid), {
+  await setDoc(doc(getFirestore(app, FIRESTORE_DB), "goMembers", uid), {
     shopId,
     customerId,
     username: username.trim().toLowerCase(),
@@ -428,8 +431,15 @@ export function subscribeNotifications(
   );
 }
 
-export function subscribeShop(config: FirebaseConfig, shopId: string, cb: (blob: ShopBlob | null) => void) {
-  return onSnapshot(doc(dbFor(config), "goShops", shopId), (snap) => {
-    cb(snap.exists() ? (snap.data() as ShopBlob) : null);
-  });
+export function subscribeShop(
+  config: FirebaseConfig,
+  shopId: string,
+  cb: (blob: ShopBlob | null) => void,
+  onError?: (error: unknown) => void,
+) {
+  return onSnapshot(
+    doc(dbFor(config), "goShops", shopId),
+    (snap) => cb(snap.exists() ? (snap.data() as ShopBlob) : null),
+    (error) => onError?.(error),
+  );
 }

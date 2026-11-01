@@ -311,7 +311,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
           if (prev && pending.current === 0) pushLocalNotification(changeNotification(prev, blob));
           setBlobs([blob]);
           setActiveShopId(blob.shop.id);
-        });
+        }, (error) => setNotice(explainFirebase(error)));
         if (cancelled) unsub();
         else stop = unsub;
       }
@@ -391,7 +391,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
                   const data = dataRaw ? (JSON.parse(dataRaw) as Record<string, GoNotification[]>) : {};
                   data[key] = next;
                   localStorage.setItem(NOTIFY_DATA_KEY, JSON.stringify(data));
-                } catch {}
+                } catch { /* localStorage cache is best-effort */ }
                 return next;
               });
             },
@@ -455,7 +455,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
         const data = raw ? (JSON.parse(raw) as Record<string, GoNotification[]>) : {};
         data[key] = next;
         localStorage.setItem(NOTIFY_DATA_KEY, JSON.stringify(data));
-      } catch {}
+      } catch { /* localStorage cache is best-effort */ }
       return next;
     });
   }
@@ -793,7 +793,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
           setNotice("@shopMissing");
           return;
         }
-        let next = { ...customer, username: customer.username?.trim() || undefined };
+        const next = { ...customer, username: customer.username?.trim() || undefined };
         if (!next.username) {
           const pass = phoneDigits(next.phone);
           if (pass.length < 6) {
@@ -970,7 +970,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
             const readMap = readRaw ? (JSON.parse(readRaw) as Record<string, string[]>) : {};
             readMap[key] = next.map((n) => n.id);
             localStorage.setItem(NOTIFY_READ_KEY, JSON.stringify(readMap));
-          } catch {}
+          } catch { /* localStorage cache is best-effort */ }
           return next;
         });
       },
