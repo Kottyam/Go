@@ -141,6 +141,11 @@ export type GoNotification = {
   message: string;
   at: number;
   read: boolean;
+  /** uids that have read this event (stored in Firestore). */
+  readBy?: string[];
+  /** client-only: shop the event belongs to, and whether it came from Firestore. */
+  shopId?: string;
+  remote?: boolean;
 };
 
 export type Session =

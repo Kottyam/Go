@@ -21,11 +21,11 @@ import {
 import { seed } from "./seed";
 import type { Customer, Extra, FirebaseConfig, GoNotification, Item, Order, OrderStatus, Payment, Session, Shop, ShopBlob } from "./types";
 
-const DEMO_KEY = "go-ledger-demo-v2";
-const CFG_KEY = "go-firebase-config";
+// Firestore is the single source of truth for shop data. The only things kept in
+// browser storage are the session (this key) and the UI language (i18n.tsx).
 const SESSION_KEY = "go-session-v1";
-const NOTIFY_READ_KEY = "go-notification-read-v1";
-const NOTIFY_DATA_KEY = "go-notification-data-v1";
+// Keys written by older builds; removed on startup so stale copies can't leak back in.
+const LEGACY_KEYS = ["go-ledger-demo-v2", "go-firebase-config", "go-notification-read-v1", "go-notification-data-v1"];
 
 function sessionShopId(session: Session | null) {
   return session?.kind === "customer" ? session.shopId : "";
@@ -130,9 +130,9 @@ export function useGo() {
   return ctx;
 }
 
+// Demo mode lives only in memory and is rebuilt from seed() on every load.
 function loadDemo() {
-  const saved = readJSON<ShopBlob[]>(DEMO_KEY);
-  return saved && saved.length > 0 ? saved : seed();
+  return seed();
 }
 
 export function GoProvider({ children }: { children: ReactNode }) {
@@ -157,9 +157,14 @@ export function GoProvider({ children }: { children: ReactNode }) {
   configRef.current = config;
 
   useEffect(() => {
-    const saved = readJSON<FirebaseConfig>(CFG_KEY);
-    const cfg = saved?.projectId === FIREBASE_PROJECT ? saved : DEFAULT_FIREBASE;
-    if (!saved) localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+    for (const key of LEGACY_KEYS) {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        /* storage unavailable */
+      }
+    }
+    const cfg = DEFAULT_FIREBASE;
     const ses = readJSON<Session>(SESSION_KEY);
     const demo = loadDemo();
     setConfig(cfg);
@@ -182,18 +187,7 @@ export function GoProvider({ children }: { children: ReactNode }) {
       setNotifications([]);
       return;
     }
-    try {
-      const key = notificationKey(session);
-      const raw = localStorage.getItem(NOTIFY_DATA_KEY);
-      const data = raw ? (JSON.parse(raw) as Record<string, GoNotification[]>) : {};
-      const saved = key ? data[key] ?? [] : [];
-      const readRaw = localStorage.getItem(NOTIFY_READ_KEY);
-      const readMap = readRaw ? (JSON.parse(readRaw) as Record<string, string[]>) : {};
-      const readIds = new Set(readMap[key] ?? []);
-      setNotifications(saved.map((n) => ({ ...n, read: readIds.has(n.id) || n.read })));
-    } catch {
-      setNotifications([]);
-    }
+    setNotifications([]);
   }, [ready, session?.kind, session?.uid, sessionShopId(session)]);
 
   useEffect(() => {
@@ -263,13 +257,6 @@ export function GoProvider({ children }: { children: ReactNode }) {
       stop();
     };
   }, [ready, config]);
-
-  useEffect(() => {
-    if (!ready) return;
-    if (session?.backend === "firebase") return;
-    if (blobs.length === 0) return;
-    localStorage.setItem(DEMO_KEY, JSON.stringify(blobs));
-  }, [blobs, ready, session]);
 
   useEffect(() => {
     if (!ready) return;
@@ -377,22 +364,12 @@ export function GoProvider({ children }: { children: ReactNode }) {
             config,
             shopId,
             (rows) => {
-              const key = notificationKey(sessionRef.current);
-              if (!key) return;
-              const readRaw = localStorage.getItem(NOTIFY_READ_KEY);
-              const readMap = readRaw ? (JSON.parse(readRaw) as Record<string, string[]>) : {};
-              const readIds = new Set(readMap[key] ?? []);
-              const merged = rows.map((n) => ({ ...n, read: n.read || readIds.has(n.id) }));
+              const live = sessionRef.current;
+              if (!live) return;
+              const merged = rows.map((n) => ({ ...n, shopId, read: (n.readBy ?? []).includes(live.uid) }));
               setNotifications((current) => {
-                const localOnly = current.filter((n) => !merged.some((m) => m.id === n.id));
-                const next = [...merged, ...localOnly].sort((a, b) => b.at - a.at).slice(0, 30);
-                try {
-                  const dataRaw = localStorage.getItem(NOTIFY_DATA_KEY);
-                  const data = dataRaw ? (JSON.parse(dataRaw) as Record<string, GoNotification[]>) : {};
-                  data[key] = next;
-                  localStorage.setItem(NOTIFY_DATA_KEY, JSON.stringify(data));
-                } catch { /* localStorage cache is best-effort */ }
-                return next;
+                const others = current.filter((n) => !merged.some((m) => m.id === n.id) && (n.shopId !== shopId || !n.remote));
+                return [...merged.map((n) => ({ ...n, remote: true })), ...others].sort((x, y) => y.at - x.at).slice(0, 30);
               });
             },
             (error) => setNotice(explainFirebase(error)),
@@ -446,18 +423,8 @@ export function GoProvider({ children }: { children: ReactNode }) {
 
   function pushLocalNotification(notification: GoNotification | null) {
     if (!notification) return;
-    const key = notificationKey(sessionRef.current);
-    if (!key) return;
-    setNotifications((current) => {
-      const next = [notification, ...current.filter((n) => n.id !== notification.id)].slice(0, 30);
-      try {
-        const raw = localStorage.getItem(NOTIFY_DATA_KEY);
-        const data = raw ? (JSON.parse(raw) as Record<string, GoNotification[]>) : {};
-        data[key] = next;
-        localStorage.setItem(NOTIFY_DATA_KEY, JSON.stringify(data));
-      } catch { /* localStorage cache is best-effort */ }
-      return next;
-    });
+    if (!notificationKey(sessionRef.current)) return;
+    setNotifications((current) => [notification, ...current.filter((n) => n.id !== notification.id)].slice(0, 30));
   }
 
   const api = useMemo<GoApi>(() => {
@@ -587,8 +554,6 @@ export function GoProvider({ children }: { children: ReactNode }) {
         }
         configRef.current = next;
         setConfig(next);
-        if (next) localStorage.setItem(CFG_KEY, JSON.stringify(next));
-        else localStorage.removeItem(CFG_KEY);
         setNotice(next ? "@configSaved" : "@configCleared");
       },
       signInOwner: async () => {
@@ -720,7 +685,6 @@ export function GoProvider({ children }: { children: ReactNode }) {
         const demo = seed();
         setBlobs(demo);
         setActiveShopId(demo[0]?.shop.id ?? null);
-        localStorage.setItem(DEMO_KEY, JSON.stringify(demo));
         setNotice("@demoReset");
       },
       addShop: async (input) => {
@@ -959,25 +923,27 @@ export function GoProvider({ children }: { children: ReactNode }) {
       markNotificationsRead: () => {
         const key = notificationKey(sessionRef.current);
         if (!key) return;
-        setNotifications((current) => {
-          const next = current.map((n) => ({ ...n, read: true }));
+        const live = sessionRef.current;
+        const cfg = configRef.current;
+        const unread = notifications.filter((n) => !n.read && n.remote && n.shopId);
+        setNotifications((current) => current.map((n) => ({ ...n, read: true })));
+        if (live?.backend !== "firebase" || !cfg || unread.length === 0) return;
+        void (async () => {
           try {
-            const dataRaw = localStorage.getItem(NOTIFY_DATA_KEY);
-            const data = dataRaw ? (JSON.parse(dataRaw) as Record<string, GoNotification[]>) : {};
-            data[key] = next;
-            localStorage.setItem(NOTIFY_DATA_KEY, JSON.stringify(data));
-            const readRaw = localStorage.getItem(NOTIFY_READ_KEY);
-            const readMap = readRaw ? (JSON.parse(readRaw) as Record<string, string[]>) : {};
-            readMap[key] = next.map((n) => n.id);
-            localStorage.setItem(NOTIFY_READ_KEY, JSON.stringify(readMap));
-          } catch { /* localStorage cache is best-effort */ }
-          return next;
-        });
+            await (await loadFirebase()).markNotificationsRead(
+              cfg,
+              live.uid,
+              unread.map((n) => ({ shopId: n.shopId!, id: n.id })),
+            );
+          } catch {
+            /* read state is best-effort; it will retry next time */
+          }
+        })();
       },
     };
     // commit identity changes each render; methods close over latest via refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeShopId, blobs, busy, config, directory, googleAccount, notice, ready, session]);
+  }, [activeShopId, blobs, busy, config, directory, googleAccount, notice, notifications, ready, session]);
 
   return <GoContext.Provider value={api}>{children}</GoContext.Provider>;
 }
