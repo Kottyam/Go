@@ -1,340 +1,88 @@
-import type {
-  Customer,
-  Item,
-  Order,
-  OrderLine,
-  OrderStatus,
-  Payment,
-  Shop,
-  ShopBlob,
-  ShopKind,
-  Extra,
-} from "./types";
+import type { Order, OrderLine, Payment } from "./types";
 
-export function todayISO(d = new Date()) {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+export const MEMBER_DOMAIN = "m.goservice.online";
+
+export function inr(n: number) {
+  const v = Math.round(n * 100) / 100;
+  return "₹" + v.toLocaleString("en-IN", { maximumFractionDigits: 2 });
 }
 
-export function shiftISO(iso: string, days: number) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
-  dt.setDate(dt.getDate() + days);
-  return todayISO(dt);
+export function dayKey(ms: number) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function monthKey(iso = todayISO()) {
-  return iso.slice(0, 7);
+export function monthKey(ms: number) {
+  return dayKey(ms).slice(0, 7);
 }
 
 export function shiftMonth(key: string, delta: number) {
   const [y, m] = key.split("-").map(Number);
-  const dt = new Date(y ?? 2026, (m ?? 1) - 1 + delta, 1);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}`;
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const ML_MONTHS = [
-  "ജനുവരി",
-  "ഫെബ്രുവരി",
-  "മാർച്ച്",
-  "ഏപ്രിൽ",
-  "മേയ്",
-  "ജൂൺ",
-  "ജൂലൈ",
-  "ഓഗസ്റ്റ്",
-  "സെപ്റ്റംബർ",
-  "ഒക്ടോബർ",
-  "നവംബർ",
-  "ഡിസംബർ",
-];
-
-export function monthLabel(key: string) {
-  const [y, m] = key.split("-").map(Number);
-  return `${ML_MONTHS[(m ?? 1) - 1] ?? ""} ${y ?? ""}`;
+export function linesTotal(lines: OrderLine[]) {
+  return Math.round(lines.reduce((s, l) => s + l.qty * l.price, 0) * 100) / 100;
 }
 
-export function inr(n: number) {
-  const v = Number.isFinite(n) ? n : 0;
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: Number.isInteger(v) ? 0 : 2,
-  }).format(v);
-}
-
-export function qtyText(n: number) {
-  return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
-}
-
-export function orderTotal(order: { lines: OrderLine[] }) {
-  return order.lines.reduce((s, l) => s + l.qty * l.price, 0);
-}
-
-export const SERVICES: { id: ShopKind; label: string }[] = [
-  { id: "bakery", label: "ബേക്കറി" },
-  { id: "stationery", label: "സ്റ്റേഷനറി" },
-  { id: "kirana", label: "കിരാണ" },
-  { id: "wholesale", label: "ഹോൾസെയിൽ" },
-  { id: "steel", label: "സ്റ്റീൽ" },
-  { id: "paint", label: "പെയിന്റ്" },
-  { id: "hotel", label: "ഹോട്ടൽ" },
-  { id: "medical", label: "മെഡിക്കൽ" },
-  { id: "textile", label: "ടെക്സ്റ്റൈൽ" },
-  { id: "electronics", label: "ഇലക്ട്രോണിക്സ്" },
-  { id: "rice", label: "അരി" },
-  { id: "newspaper", label: "പത്രം" },
-  { id: "milk", label: "പാൽ" },
-  { id: "water", label: "വെള്ളം" },
-  { id: "vegetable", label: "പച്ചക്കറി" },
-  { id: "laundry", label: "അലക്ക്" },
-  { id: "custom", label: "മറ്റൊന്ന്" },
-];
-
-export function kindLabel(kind: ShopKind) {
-  return SERVICES.find((s) => s.id === kind)?.label ?? "മറ്റ് സർവീസ്";
-}
-
-export function shopService(shop: { kind: ShopKind; serviceName?: string }) {
-  if (shop.kind === "custom") return shop.serviceName?.trim() || "മറ്റ് സർവീസ്";
-  return kindLabel(shop.kind);
-}
-
-export function statusLabel(s: OrderStatus) {
-  if (s === "pending") return "പുതിയത്";
-  if (s === "packed") return "പാക്ക്";
-  if (s === "out") return "വഴിയിൽ";
-  if (s === "delivered") return "എത്തി";
-  return "റദ്ദ്";
-}
-
-export function methodLabel(m: Payment["method"]) {
-  if (m === "cash") return "ക്യാഷ്";
-  if (m === "upi") return "UPI";
-  return "ബാങ്ക്";
-}
-
-export function shopCode(existing: string[]) {
-  const used = new Set(existing);
-  for (let i = 0; i < 30; i++) {
-    const code = "GO" + String(Math.floor(1000 + Math.random() * 9000));
-    if (!used.has(code)) return code;
-  }
-  return "GO" + String(Date.now()).slice(-4);
-}
-
-export function phonesMatch(a: string, b: string) {
-  const d = (s: string) => s.replace(/\D/g, "").slice(-10);
-  const left = d(a);
-  const right = d(b);
-  return left.length === 10 && left === right;
-}
-
-export function billFor(
-  customerId: string,
-  month: string,
-  orders: Order[],
-  payments: Payment[],
-) {
-  const mine = orders.filter((o) => o.customerId === customerId && o.status !== "cancelled");
-  const creditBefore = mine
-    .filter((o) => o.mode === "credit" && o.date.slice(0, 7) < month)
-    .reduce((s, o) => s + orderTotal(o), 0);
-  const paidBefore = payments
-    .filter((p) => p.customerId === customerId && p.date.slice(0, 7) < month)
-    .reduce((s, p) => s + p.amount, 0);
-  const opening = creditBefore - paidBefore;
-  const sales = mine
-    .filter((o) => o.mode === "credit" && o.date.slice(0, 7) === month)
-    .reduce((s, o) => s + orderTotal(o), 0);
-  const cash = mine
-    .filter((o) => o.mode === "cash" && o.date.slice(0, 7) === month)
-    .reduce((s, o) => s + orderTotal(o), 0);
-  const collected = payments
-    .filter((p) => p.customerId === customerId && p.date.slice(0, 7) === month)
-    .reduce((s, p) => s + p.amount, 0);
-  return { opening, sales, cash, collected, due: opening + sales - collected };
-}
-
-export function balance(customerId: string, orders: Order[], payments: Payment[]) {
+/** Amount the customer owes: all non-cancelled orders minus all payments. */
+export function balanceOf(customerId: string, orders: Order[], payments: Payment[]) {
   const sales = orders
-    .filter((o) => o.customerId === customerId && o.mode === "credit" && o.status !== "cancelled")
-    .reduce((s, o) => s + orderTotal(o), 0);
+    .filter((o) => o.customerId === customerId && o.status !== "cancelled")
+    .reduce((s, o) => s + o.total, 0);
   const paid = payments.filter((p) => p.customerId === customerId).reduce((s, p) => s + p.amount, 0);
-  return sales - paid;
+  return Math.round((sales - paid) * 100) / 100;
 }
 
-export function applyStock(items: Item[], lines: OrderLine[], dir: 1 | -1): Item[] {
-  const map = new Map(lines.map((l) => [l.itemId, l.qty]));
-  return items.map((it) => {
-    const q = map.get(it.id);
-    if (q == null) return it;
-    return { ...it, stock: Math.round((it.stock - dir * q) * 100) / 100 };
-  });
+/** Monthly statement: opening due, this month's sales and payments, closing due. */
+export function billFor(customerId: string, month: string, orders: Order[], payments: Payment[]) {
+  const mine = orders.filter((o) => o.customerId === customerId && o.status !== "cancelled");
+  const pays = payments.filter((p) => p.customerId === customerId);
+  const before = (ms: number) => monthKey(ms) < month;
+  const inM = (ms: number) => monthKey(ms) === month;
+  const opening =
+    mine.filter((o) => before(o.createdAt)).reduce((s, o) => s + o.total, 0) -
+    pays.filter((p) => before(p.createdAt)).reduce((s, p) => s + p.amount, 0);
+  const monthOrders = mine.filter((o) => inM(o.createdAt));
+  const monthPays = pays.filter((p) => inM(p.createdAt));
+  const sales = monthOrders.reduce((s, o) => s + o.total, 0);
+  const paid = monthPays.reduce((s, p) => s + p.amount, 0);
+  return { opening, sales, paid, closing: opening + sales - paid, orders: monthOrders, payments: monthPays };
 }
 
-export async function passHash(password: string) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+export function upiUrl(upi: string, payee: string, amount: number, note = "Go Service") {
+  const q = [`pa=${upi.trim()}`, `pn=${encodeURIComponent(payee)}`, "cu=INR", `tn=${encodeURIComponent(note)}`];
+  if (amount > 0) q.push(`am=${amount.toFixed(2)}`);
+  return `upi://pay?${q.join("&")}`;
 }
 
-export function memberEmail(username: string) {
-  const slug = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
-  return `${slug}@members.go1729.app`;
+export function normCode(raw: string) {
+  return raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
-export function phoneDigits(phone: string) {
-  return phone.replace(/\D/g, "");
+export function normUsername(raw: string) {
+  return raw.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-export function nextShopMemberNo(customers: { username?: string }[]) {
-  const nums = customers.map((c) => Number(c.username)).filter((n) => Number.isInteger(n) && n > 0);
-  return String((nums.length ? Math.max(...nums) : 0) + 1).padStart(3, "0");
+export function newCode(rand: () => number = Math.random) {
+  const abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "";
+  for (let i = 0; i < 6; i++) s += abc[Math.floor(rand() * abc.length)];
+  return s;
 }
 
-export function memberLoginId(shopCode: string, username: string) {
-  return `${shopCode.trim().toUpperCase()}-${username.trim()}`;
+/** Synthetic Firebase email for a customer login. `v` bumps when the owner resets the PIN. */
+export function loginEmail(code: string, username: string, v: number) {
+  return `${normUsername(username)}.${v}.${normCode(code).toLowerCase()}@${MEMBER_DOMAIN}`;
 }
 
-export function memberUser(shopCode: string, username: string) {
-  return `${shopCode.trim().toUpperCase()}${username.trim()}`;
+export function isMemberEmail(email: string | null | undefined) {
+  return !!email && email.toLowerCase().endsWith("@" + MEMBER_DOMAIN);
 }
 
-export function splitMemberUser(raw: string) {
-  const input = raw.trim().toUpperCase();
-  const compact = input.replace(/[^A-Z0-9]/g, "");
-  const hit = compact.match(/^(GO\d{4})(\d{1,3})$/);
-  if (!hit) return null;
-  // Keep the member number exactly as entered. Firebase member accounts are
-  // keyed from the actual customer username (for example GO8143-1), while
-  // newly generated usernames may be zero-padded (for example GO8143-001).
-  // Padding here caused existing accounts such as go8143-1@members.go1729.app
-  // to be looked up as go8143-001@members.go1729.app.
-  const separatorMatch = input.match(/^(GO\d{4})\s*[-_]?\s*(\d{1,3})$/);
-  return { code: hit[1], no: separatorMatch?.[2] ?? hit[2] };
-}
-
-export function upiPayUrl(upi: string, name: string, amount: number, note = "Go Service payment") {
-  const pa = upi.trim();
-  if (!pa || amount <= 0) return "";
-  const params = new URLSearchParams({
-    pa,
-    pn: name.trim() || "Business",
-    am: amount.toFixed(2),
-    cu: "INR",
-    tn: note,
-  });
-  return "upi://pay?" + params.toString();
-}
-
-export function whatsappBillUrl(phone: string, message: string) {
+export function whatsappUrl(phone: string, text: string) {
   const digits = phone.replace(/\D/g, "");
-  const intl = digits.length === 10 ? "91" + digits : digits.replace(/^00/, "");
-  return intl ? `https://wa.me/${intl}?text=${encodeURIComponent(message)}` : `https://wa.me/?text=${encodeURIComponent(message)}`;
-}
-
-export function emptyBlob(shop: Shop, ownerUid: string): ShopBlob {
-  return { shop, ownerUid, items: [], customers: [], orders: [], payments: [], skips: [], extras: [], rev: 1 };
-}
-
-export function recipeUpsertItem(b: ShopBlob, item: Item): ShopBlob {
-  const exists = b.items.some((i) => i.id === item.id);
-  return {
-    ...b,
-    rev: b.rev + 1,
-    items: exists ? b.items.map((i) => (i.id === item.id ? item : i)) : [item, ...b.items],
-  };
-}
-
-export function recipeUpsertCustomer(b: ShopBlob, customer: Customer): ShopBlob {
-  const username = customer.username?.trim().toLowerCase() || undefined;
-  if (username && b.customers.some((c) => c.id !== customer.id && (c.username || "").toLowerCase() === username)) {
-    throw new Error("@userTaken");
-  }
-  const exists = b.customers.some((c) => c.id === customer.id);
-  const next: Customer = { ...customer, username };
-  return {
-    ...b,
-    rev: b.rev + 1,
-    customers: exists
-      ? b.customers.map((c) =>
-          c.id === customer.id
-            ? {
-                ...c,
-                ...next,
-                username: username || c.username,
-                passHash: next.passHash || c.passHash,
-                memberUid: next.memberUid || c.memberUid,
-                linkedUid: c.linkedUid,
-              }
-            : c,
-        )
-      : [next, ...b.customers],
-  };
-}
-
-export function recipePlaceOrder(b: ShopBlob, order: Order): ShopBlob {
-  return {
-    ...b,
-    rev: b.rev + 1,
-    orders: [order, ...b.orders],
-    items: applyStock(b.items, order.lines, 1),
-  };
-}
-
-export function recipeStatus(b: ShopBlob, orderId: string, status: OrderStatus): ShopBlob {
-  const prev = b.orders.find((o) => o.id === orderId);
-  if (!prev || prev.status === status) return b;
-  let items = b.items;
-  if (prev.status !== "cancelled" && status === "cancelled") items = applyStock(items, prev.lines, -1);
-  if (prev.status === "cancelled" && status !== "cancelled") items = applyStock(items, prev.lines, 1);
-  return {
-    ...b,
-    rev: b.rev + 1,
-    items,
-    orders: b.orders.map((o) => (o.id === orderId ? { ...o, status } : o)),
-  };
-}
-
-export function recipeExtra(b: ShopBlob, extra: Extra): ShopBlob {
-  return { ...b, rev: b.rev + 1, extras: [extra, ...(b.extras ?? [])] };
-}
-
-export function recipeDropExtra(b: ShopBlob, extraId: string): ShopBlob {
-  return { ...b, rev: b.rev + 1, extras: (b.extras ?? []).filter((e) => e.id !== extraId) };
-}
-
-export function recipeSkip(b: ShopBlob, customerId: string, date: string): ShopBlob {
-  const skips = b.skips ?? [];
-  const has = skips.some((s) => s.customerId === customerId && s.date === date);
-  return {
-    ...b,
-    rev: b.rev + 1,
-    skips: has ? skips.filter((s) => !(s.customerId === customerId && s.date === date)) : [...skips, { customerId, date }],
-  };
-}
-
-export function passDue(customer: Customer, extras: Extra[] | undefined, payments: Payment[], month: string) {
-  const fee = customer.passAmount ?? 0;
-  const addons = (customer.addons ?? []).reduce((s, a) => s + a.amount, 0);
-  const extra = (extras ?? []).filter((e) => e.customerId === customer.id && e.date.startsWith(month)).reduce((s, e) => s + e.amount, 0);
-  const total = fee + addons + extra;
-  const paid = payments.filter((p) => p.customerId === customer.id && p.date.startsWith(month)).reduce((s, p) => s + p.amount, 0);
-  return { fee, addons, extra, total, paid, due: Math.max(0, total - paid) };
-}
-
-export function recipePayment(b: ShopBlob, payment: Payment): ShopBlob {
-  return { ...b, rev: b.rev + 1, payments: [payment, ...b.payments] };
-}
-
-export function recipeLink(b: ShopBlob, customerId: string, linkedUid: string, phone: string): ShopBlob {
-  const customer = b.customers.find((c) => c.id === customerId);
-  if (!customer) throw new Error("@customerMissing");
-  if (!phonesMatch(customer.phone, phone)) throw new Error("@phoneMismatch");
-  if (customer.linkedUid && customer.linkedUid !== linkedUid) throw new Error("@nameLinked");
-  return {
-    ...b,
-    rev: b.rev + 1,
-    customers: b.customers.map((c) => (c.id === customerId ? { ...c, linkedUid } : c)),
-  };
+  const to = digits.length === 10 ? "91" + digits : digits;
+  return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
 }

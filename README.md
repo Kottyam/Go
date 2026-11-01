@@ -1,30 +1,17 @@
-# GO
+# Go Service (v2)
 
-ബേക്കറി, സ്റ്റീൽ, പെയിന്റ്, ഹോൾസെയിൽ, കിരാണ — ക്രെഡിറ്റ് ബിൽ, ഓർഡർ എൻട്രി, മാസബിൽ.
+Credit-ledger & ordering app for small shops. TanStack Start + React 19 + Firebase (Firestore database **`default`**, project `go-1729-b9fc3`).
 
-Go Canteen (`Canteen-chat-gpt`) ഒരു കാന്റീൻ മെനുവിന് വേണ്ടിയുള്ളതാണ്. GO അതേ എളുപ്പത്തിൽ, പക്ഷേ ഓരോ ഷോപ്പിനും സ്വന്തം ഐറ്റംസ്, കസ്റ്റമർ കടം, മാസബിൽ, പിരിവ്, സെയിൽസ്.
+- **Owner**: signs in with Google → dashboard (today's orders, total dues, customers), items, shop settings, optional import from the old app.
+- **Customer**: Shop ID + username + PIN → balance, order, UPI pay, history, notifications.
+- English / Malayalam toggle. Android build kept (`npm run build:android`).
 
-ബാക്കെൻഡ്: Firebase Spark (സൗജന്യം) — Google സൈൻ-ഇൻ + Firestore. Supabase അല്ല.
+## Data
+New data lives only in `v2_*` collections (`v2_shops` + subcollections, `v2_codes`, `v2_logins`, `v2_members`).
+The live collections used by goservice.online (`goShops`, `goCodes`, `goOwners`, `goMembers`, `goCounters`, `goNotifications`) are **never written**; the importer only reads them.
 
-## ഉടമയ്ക്ക്
+## Scripts
+`npm run dev` · `npm run dev:emu` (needs `firebase emulators:start --only auth,firestore`) · `npm run typecheck` · `npm test` · `npm run test:rules` (emulator) · `npm run lint` · `npm run build`
 
-- ഒന്നിലധികം ഷോപ്പുകൾ
-- ഐറ്റംസ്, വില, സ്റ്റോക്ക്
-- കസ്റ്റമർ, റൂട്ട്, ക്രെഡിറ്റ് പരിധി
-- ക്രെഡിറ്റ് / ക്യാഷ് ഓർഡർ
-- മാസബിൽ, പിരിവ്, പ്രിന്റ്
-- റൂട്ട് വിതരണം
-- സെയിൽസ്
-
-## കസ്റ്റമർക്ക്
-
-ഷോപ്പ് കോഡും ഫോൺ നമ്പറും വെച്ച് Google അക്കൗണ്ട് ബന്ധിപ്പിച്ച് ഓർഡറും ബില്ലും കാണാം.
-
-## Firebase
-
-1. Firebase Console → പുതിയ പ്രോജക്റ്റ് (Spark).
-2. Authentication → Google ഓൺ.
-3. Firestore ഉണ്ടാക്കുക (`asia-south1`).
-4. `firestore.rules` Publish ചെയ്യുക.
-5. Web app config ആപ്പിലെ ക്രമീകരണത്തിൽ ഒട്ടിക്കുക.
-6. Authentication → Settings → Authorized domains-ൽ സൈറ്റ് ചേർക്കുക.
+## Firestore rules
+`firestore.rules.backup` = live rules as fetched. `firestore.rules` = the same text byte-for-byte plus an additive `v2_*` block. Rules were **not deployed** automatically; apply them in Firebase console → Firestore → database `default` → Rules (compare with the backup first).

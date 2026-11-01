@@ -1,169 +1,71 @@
-export type ShopKind =
-  | "bakery"
-  | "stationery"
-  | "kirana"
-  | "wholesale"
-  | "steel"
-  | "paint"
-  | "hotel"
-  | "medical"
-  | "textile"
-  | "electronics"
-  | "rice"
-  | "newspaper"
-  | "milk"
-  | "water"
-  | "vegetable"
-  | "laundry"
-  | "custom";
-
-export type WorkMode = "order" | "fixed" | "daily";
-
 export type Shop = {
   id: string;
   name: string;
-  kind: ShopKind;
-  serviceName?: string;
-  work: WorkMode;
-  phone: string;
-  address: string;
-  upi: string;
-  gstin?: string;
   code: string;
-};
-
-export type Item = {
-  id: string;
-  shopId: string;
-  name: string;
-  unit: string;
-  price: number;
-  stock: number;
-  active: boolean;
-};
-
-export type Addon = {
-  id: string;
-  name: string;
-  amount: number;
-};
-
-export type Extra = {
-  id: string;
-  customerId: string;
-  date: string;
-  name: string;
-  amount: number;
+  ownerUid: string;
+  phone: string;
+  upi: string;
+  address: string;
+  createdAt: number;
 };
 
 export type Customer = {
   id: string;
-  shopId: string;
   name: string;
   phone: string;
-  route: string;
-  creditLimit: number;
+  username: string;
+  loginEmail: string;
+  memberUid: string;
   note: string;
-  passAmount?: number;
-  dayRate?: number;
-  addons?: Addon[];
-  linkedUid?: string;
-  username?: string;
-  passHash?: string;
-  memberUid?: string;
-  mustChangePass?: boolean;
+  createdAt: number;
 };
 
-export type OrderLine = {
-  itemId: string;
+export type Item = {
+  id: string;
   name: string;
   unit: string;
-  qty: number;
   price: number;
+  active: boolean;
 };
 
-export type OrderStatus = "pending" | "packed" | "out" | "delivered" | "cancelled";
-export type PayMode = "credit" | "cash";
-export type PayMethod = "cash" | "upi" | "bank";
+export type OrderLine = { itemId: string; name: string; unit: string; qty: number; price: number };
+export type OrderStatus = "placed" | "accepted" | "delivered" | "cancelled";
 
 export type Order = {
   id: string;
-  shopId: string;
   customerId: string;
   customerName: string;
-  date: string;
   lines: OrderLine[];
-  mode: PayMode;
+  total: number;
   status: OrderStatus;
+  by: "owner" | "customer";
   note: string;
+  createdAt: number;
+  updatedAt: number;
 };
+
+export type PayMethod = "cash" | "upi" | "bank";
 
 export type Payment = {
   id: string;
-  shopId: string;
   customerId: string;
   customerName: string;
-  date: string;
   amount: number;
   method: PayMethod;
   note: string;
+  createdAt: number;
 };
 
-export type DayOff = {
-  customerId: string;
-  date: string;
-};
-
-export type ShopBlob = {
-  shop: Shop;
-  ownerUid: string;
-  items: Item[];
-  customers: Customer[];
-  orders: Order[];
-  payments: Payment[];
-  skips?: DayOff[];
-  extras?: Extra[];
-  rev: number;
-};
-
-export type FirebaseConfig = {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  appId: string;
-  storageBucket?: string;
-  messagingSenderId?: string;
-};
-
-export type GoNotification = {
+export type Notice = {
   id: string;
-  kind: "order" | "payment" | "customer" | "item" | "shop" | "system";
-  message: string;
-  at: number;
+  to: string; // "owner" or a customerId
+  from: string; // "owner" or a customerId
+  text: string;
   read: boolean;
+  createdAt: number;
 };
 
 export type Session =
-  | {
-      kind: "owner";
-      backend: "demo" | "firebase";
-      name: string;
-      uid: string;
-      email: string;
-    }
-  | {
-      kind: "customer";
-      backend: "demo" | "firebase";
-      name: string;
-      uid: string;
-      email: string;
-      shopId: string;
-      customerId: string;
-    }
-  | {
-      kind: "super";
-      backend: "demo" | "firebase";
-      name: string;
-      uid: string;
-      email: string;
-    };
+  | { kind: "owner"; uid: string; name: string; email: string }
+  | { kind: "customer"; uid: string; shopId: string; customerId: string }
+  | { kind: "unlinked"; uid: string; email: string };

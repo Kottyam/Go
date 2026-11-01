@@ -1,14 +1,145 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function superAdmin() {
+      return signedIn() && request.auth.token.email == 'superadmin@go1729.app'
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+    function ownerOfShop(id) {
+      return signedIn() && exists(/databases/$(database)/documents/goShops/$(id))
+        && get(/databases/$(database)/documents/goShops/$(id)).data.ownerUid == request.auth.uid;
+    }
+    function memberOfShop(id) {
+      return signedIn() && exists(/databases/$(database)/documents/goMembers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/goMembers/$(request.auth.uid)).data.shopId == id;
+    }
     match /goShops/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if superAdmin() || ownerOfShop(id) || memberOfShop(id);
+      allow create: if superAdmin() || (signedIn() && request.resource.data.ownerUid == request.auth.uid);
+      allow update, delete: if superAdmin() || ownerOfShop(id);
     }
     match /goOwners/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == id;
+      allow read, write: if superAdmin() || (signedIn() && request.auth.uid == id);
     }
     match /goCodes/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if superAdmin() || ownerOfShop(resource.data.shopId) || memberOfShop(resource.data.shopId);
+      allow create, update: if superAdmin() || (signedIn() && request.resource.data.shopId != null && ownerOfShop(request.resource.data.shopId));
+      allow delete: if superAdmin() || (signedIn() && ownerOfShop(resource.data.shopId));
     }
+    match /goMembers/{id} {
+      allow read: if superAdmin() || (signedIn() && request.auth.uid == id)
+        || (signedIn() && resource.data.shopId != null && ownerOfShop(resource.data.shopId));
+      allow create: if superAdmin() || (signedIn() && request.resource.data.shopId != null && ownerOfShop(request.resource.data.shopId));
+      allow update: if superAdmin() || (signedIn() && resource.data.shopId == request.resource.data.shopId && ownerOfShop(resource.data.shopId));
+      allow delete: if superAdmin() || (signedIn() && ownerOfShop(resource.data.shopId));
+    }
+    match /goCounters/{id} { allow read, write: if superAdmin() || (signedIn() && id == 'members'); }
+    match /goNotifications/{shopId}/events/{notificationId} {
+      allow read: if superAdmin() || ownerOfShop(shopId) || memberOfShop(shopId);
+      allow create, update, delete: if superAdmin() || ownerOfShop(shopId);
+    }
+    // ===== Go Service v2 (added; legacy rules above are unchanged) =====
+    function v2Shop(id) {
+      return get(/databases/$(database)/documents/v2_shops/$(id)).data;
+    }
+    function v2Owner(id) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/v2_shops/$(id))
+        && v2Shop(id).ownerUid == request.auth.uid;
+    }
+    function v2MyCid(id) {
+      return get(/databases/$(database)/documents/v2_members/$(request.auth.uid)).data.customerId;
+    }
+    function v2Member(id) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/v2_members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/v2_members/$(request.auth.uid)).data.shopId == id
+        && get(/databases/$(database)/documents/v2_shops/$(id)/customers/$(v2MyCid(id))).data.memberUid == request.auth.uid;
+    }
+
+    match /v2_codes/{code} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['shopId'])
+        && getAfter(/databases/$(database)/documents/v2_shops/$(request.resource.data.shopId)).data.ownerUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/v2_shops/$(request.resource.data.shopId)).data.code == code;
+      allow update, delete: if false;
+    }
+
+    match /v2_logins/{key} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['shopId', 'customerId', 'v'])
+        && request.resource.data.v is int
+        && v2Owner(request.resource.data.shopId)
+        && key.split('_')[0] == v2Shop(request.resource.data.shopId).code
+        && (resource == null || resource.data.shopId == request.resource.data.shopId);
+      allow delete: if v2Owner(resource.data.shopId);
+    }
+
+    match /v2_members/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || v2Owner(resource.data.shopId));
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['shopId', 'customerId'])
+        && get(/databases/$(database)/documents/v2_shops/$(request.resource.data.shopId)/customers/$(request.resource.data.customerId)).data.loginEmail == request.auth.token.email;
+      allow delete: if false;
+    }
+
+    match /v2_shops/{shopId} {
+      allow read: if (signedIn() && resource.data.ownerUid == request.auth.uid) || v2Member(shopId);
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.code is string
+        && !exists(/databases/$(database)/documents/v2_codes/$(request.resource.data.code))
+        && getAfter(/databases/$(database)/documents/v2_codes/$(request.resource.data.code)).data.shopId == shopId;
+      allow update: if v2Owner(shopId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerUid', 'code']);
+      allow delete: if false;
+
+      match /customers/{cid} {
+        allow read: if v2Owner(shopId) || (v2Member(shopId) && v2MyCid(shopId) == cid);
+        allow write: if v2Owner(shopId);
+      }
+      match /items/{itemId} {
+        allow read: if v2Owner(shopId) || v2Member(shopId);
+        allow write: if v2Owner(shopId);
+      }
+      match /orders/{orderId} {
+        allow read: if v2Owner(shopId) || (v2Member(shopId) && resource.data.customerId == v2MyCid(shopId));
+        allow write: if v2Owner(shopId);
+        allow create: if v2Member(shopId)
+          && request.resource.data.customerId == v2MyCid(shopId)
+          && request.resource.data.status == 'placed'
+          && request.resource.data.by == 'customer'
+          && request.resource.data.total is number
+          && request.resource.data.lines is list
+          && request.resource.data.lines.size() <= 60;
+        allow update: if v2Member(shopId)
+          && resource.data.customerId == v2MyCid(shopId)
+          && resource.data.status == 'placed'
+          && request.resource.data.status == 'cancelled'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      }
+      match /payments/{payId} {
+        allow read: if v2Owner(shopId) || (v2Member(shopId) && resource.data.customerId == v2MyCid(shopId));
+        allow write: if v2Owner(shopId);
+      }
+      match /notices/{nid} {
+        allow read: if v2Owner(shopId) || (v2Member(shopId) && resource.data.to == v2MyCid(shopId));
+        allow write: if v2Owner(shopId);
+        allow create: if v2Member(shopId)
+          && request.resource.data.to == 'owner'
+          && request.resource.data.from == v2MyCid(shopId)
+          && request.resource.data.text is string
+          && request.resource.data.text.size() < 300;
+        allow update: if v2Member(shopId)
+          && resource.data.to == v2MyCid(shopId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      }
+    }
+    // ===== end v2 =====
+
+    match /{document=**} { allow read, write: if false; }
   }
 }
