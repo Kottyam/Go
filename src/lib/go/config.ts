@@ -26,6 +26,10 @@ service cloud.firestore {
       allow read: if superAdmin() || ownerOfShop(id) || memberOfShop(id);
       allow create: if superAdmin() || (signedIn() && request.resource.data.ownerUid == request.auth.uid);
       allow update, delete: if superAdmin() || ownerOfShop(id);
+      // Customers (members) may place orders / mark day-offs: only these fields may change.
+      allow update: if memberOfShop(id)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orders', 'items', 'skips', 'customers', 'rev']);
     }
 
     match /goOwners/{id} {
@@ -36,8 +40,11 @@ service cloud.firestore {
       allow read: if superAdmin()
         || ownerOfShop(resource.data.shopId)
         || memberOfShop(resource.data.shopId);
-      allow write: if superAdmin()
-        || (signedIn() && request.resource.data.shopId != null && ownerOfShop(request.resource.data.shopId));
+      // getAfter() so the code can be written in the same batch that creates the shop.
+      allow create, update: if superAdmin()
+        || (signedIn() && request.resource.data.shopId is string
+            && getAfter(/databases/$(database)/documents/goShops/$(request.resource.data.shopId)).data.ownerUid == request.auth.uid);
+      allow delete: if superAdmin() || ownerOfShop(resource.data.shopId);
     }
 
     match /goMembers/{id} {
@@ -55,8 +62,11 @@ service cloud.firestore {
 
     match /goNotifications/{shopId}/events/{notificationId} {
       allow read: if superAdmin() || ownerOfShop(shopId) || memberOfShop(shopId);
-      allow create: if superAdmin() || ownerOfShop(shopId);
+      allow create: if superAdmin() || ownerOfShop(shopId) || memberOfShop(shopId);
       allow update, delete: if superAdmin() || ownerOfShop(shopId);
+      // Anyone who can see the event may add themselves to readBy, nothing else.
+      allow update: if (memberOfShop(shopId) || ownerOfShop(shopId))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
     }
   }
 }`;

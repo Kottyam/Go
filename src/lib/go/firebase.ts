@@ -9,6 +9,7 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  writeBatch,
   onSnapshot,
   orderBy,
   query,
@@ -46,8 +47,11 @@ function appFor(config: FirebaseConfig) {
   return app;
 }
 
+// Single place that names the Firestore database used by the whole app.
+const FIRESTORE_DB = "default";
+
 function dbFor(config: FirebaseConfig): Firestore {
-  return getFirestore(appFor(config), "default");
+  return getFirestore(appFor(config), FIRESTORE_DB);
 }
 
 function toUser(user: { uid: string; displayName: string | null; email: string | null }): FbUser {
@@ -191,7 +195,7 @@ export async function provisionMember(
     cred = await signInWithEmailAndPassword(auth, email, password);
   }
   const uid = cred.user.uid;
-  await setDoc(doc(getFirestore(app, "default"), "goMembers", uid), {
+  await setDoc(doc(getFirestore(app, FIRESTORE_DB), "goMembers", uid), {
     shopId,
     customerId,
     username: username.trim().toLowerCase(),
@@ -255,13 +259,12 @@ export async function createShop(
   email: string,
 ) {
   const db = dbFor(config);
-  await setDoc(doc(db, "goShops", blob.shop.id), plain(blob));
-  await setDoc(doc(db, "goCodes", blob.shop.code), { shopId: blob.shop.id });
-  await setDoc(
-    doc(db, "goOwners", uid),
-    { shopIds: arrayUnion(blob.shop.id), name, email },
-    { merge: true },
-  );
+  // One atomic batch: shop, its join code and the owner index succeed or fail together.
+  const batch = writeBatch(db);
+  batch.set(doc(db, "goShops", blob.shop.id), plain(blob));
+  batch.set(doc(db, "goCodes", blob.shop.code), { shopId: blob.shop.id });
+  batch.set(doc(db, "goOwners", uid), { shopIds: arrayUnion(blob.shop.id), name, email }, { merge: true });
+  await batch.commit();
 }
 
 export async function listPlatform(config: FirebaseConfig) {
@@ -283,9 +286,11 @@ export async function listPlatform(config: FirebaseConfig) {
 
 export async function deleteShop(config: FirebaseConfig, uid: string, shopId: string, code: string) {
   const db = dbFor(config);
-  await deleteDoc(doc(db, "goShops", shopId));
-  if (code) await deleteDoc(doc(db, "goCodes", code));
-  await setDoc(doc(db, "goOwners", uid), { shopIds: arrayRemove(shopId) }, { merge: true });
+  const batch = writeBatch(db);
+  if (code) batch.delete(doc(db, "goCodes", code));
+  batch.set(doc(db, "goOwners", uid), { shopIds: arrayRemove(shopId) }, { merge: true });
+  batch.delete(doc(db, "goShops", shopId));
+  await batch.commit();
 }
 
 export async function mutateShop(
@@ -410,7 +415,7 @@ export function subscribePlatform(
 
 export async function createNotification(config: FirebaseConfig, shopId: string, notification: GoNotification) {
   const db = dbFor(config);
-  await setDoc(doc(db, "goNotifications", shopId, "events", notification.id), plain(notification));
+  await setDoc(doc(db, "goNotifications", shopId, "events", notification.id), plain({ id: notification.id, kind: notification.kind, message: notification.message, at: notification.at, read: false, readBy: [] }));
 }
 
 export function subscribeNotifications(
@@ -428,8 +433,28 @@ export function subscribeNotifications(
   );
 }
 
-export function subscribeShop(config: FirebaseConfig, shopId: string, cb: (blob: ShopBlob | null) => void) {
-  return onSnapshot(doc(dbFor(config), "goShops", shopId), (snap) => {
-    cb(snap.exists() ? (snap.data() as ShopBlob) : null);
-  });
+export function subscribeShop(
+  config: FirebaseConfig,
+  shopId: string,
+  cb: (blob: ShopBlob | null) => void,
+  onError?: (error: unknown) => void,
+) {
+  return onSnapshot(
+    doc(dbFor(config), "goShops", shopId),
+    (snap) => cb(snap.exists() ? (snap.data() as ShopBlob) : null),
+    (error) => onError?.(error),
+  );
+}
+
+export async function markNotificationsRead(
+  config: FirebaseConfig,
+  uid: string,
+  rows: Array<{ shopId: string; id: string }>,
+) {
+  const db = dbFor(config);
+  const batch = writeBatch(db);
+  for (const row of rows) {
+    batch.update(doc(db, "goNotifications", row.shopId, "events", row.id), { readBy: arrayUnion(uid) });
+  }
+  await batch.commit();
 }
